@@ -1,0 +1,1392 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="h-full bg-slate-900">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal de Estudos & Simulador TCO (TAN-1000) — v2.0</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+
+        .flip-card { background-color: transparent; perspective: 1000px; }
+        .flip-card-inner { position: relative; width: 100%; height: 100%; text-align: center; transition: transform 0.6s; transform-style: preserve-3d; }
+        .flip-card-flipped { transform: rotateY(180deg); }
+        .flip-card-front, .flip-card-back { position: absolute; width: 100%; height: 100%; -webkit-backface-visibility: hidden; backface-visibility: hidden; border-radius: 0.75rem; }
+        .flip-card-back { transform: rotateY(180deg); }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+        /* Tab transitions */
+        .tab-panel { animation: panelFade 0.35s ease; }
+        @keyframes panelFade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Card hover glow */
+        .card-glow { transition: border-color 0.3s ease, box-shadow 0.3s ease; }
+        .card-glow:hover { border-color: rgba(99,102,241,0.35); box-shadow: 0 0 24px rgba(99,102,241,0.08); }
+
+        /* Toast */
+        .toast { animation: toastIn 0.4s ease forwards; }
+        @keyframes toastIn { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+        .toast-out { animation: toastOut 0.3s ease forwards; }
+        @keyframes toastOut { from { opacity:1; transform:translateY(0); } to { opacity:0; transform:translateY(-20px); } }
+
+        /* Pulse badge */
+        .badge-pulse { animation: badgePulse 2s infinite; }
+        @keyframes badgePulse { 0%,100%{ box-shadow:0 0 0 0 rgba(239,68,68,0.4); } 50%{ box-shadow:0 0 0 6px rgba(239,68,68,0); } }
+
+        /* Streak fire */
+        .streak-glow { text-shadow: 0 0 8px rgba(234,179,8,0.6); }
+
+        /* Smooth progress bar */
+        .progress-smooth { transition: width 0.6s cubic-bezier(0.4,0,0.2,1); }
+
+        /* Glass card */
+        .glass { background: rgba(15,23,42,0.6); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+
+        /* Radio option hover */
+        .option-card { transition: all 0.2s ease; }
+        .option-card:hover { background: rgba(30,41,59,0.8); border-color: rgba(99,102,241,0.4); }
+        .option-card.selected { border-color: rgba(99,102,241,0.7); background: rgba(99,102,241,0.08); }
+        .option-card.correct { border-color: rgba(16,185,129,0.7); background: rgba(16,185,129,0.08); }
+        .option-card.incorrect { border-color: rgba(239,68,68,0.7); background: rgba(239,68,68,0.08); }
+    </style>
+</head>
+<body class="h-full flex flex-col text-slate-100 bg-slate-950 overflow-x-hidden">
+
+<!-- Toast Container -->
+<div id="toast-container" class="fixed bottom-6 right-6 z-[100] space-y-3"></div>
+
+<!-- Header -->
+<header class="bg-slate-900/80 backdrop-blur-md border-b border-slate-800 shrink-0 sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-16">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                    <i class="fa-solid fa-shield-halved text-white text-xl"></i>
+                </div>
+                <div>
+                    <span class="text-lg font-bold tracking-tight text-white">TANIUM <span class="text-indigo-400">TCO</span></span>
+                    <p class="text-xs text-slate-400 font-medium">Plataforma Preparatória TAN-1000 <span class="text-indigo-500/70">v2.0</span></p>
+                </div>
+            </div>
+            <nav class="hidden md:flex space-x-1" id="desktop-nav"></nav>
+            <div class="flex items-center space-x-3">
+                <div class="hidden sm:flex items-center gap-3">
+                    <div id="streak-display" class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-xs font-bold text-amber-400 streak-glow hidden">
+                        <i class="fa-solid fa-fire"></i><span id="streak-count">0</span>
+                    </div>
+                    <div class="flex flex-col items-end">
+                        <span class="text-xs text-slate-400">Prontidão</span>
+                        <span id="global-readiness-percent" class="text-sm font-bold text-emerald-400">0% Pronto</span>
+                    </div>
+                </div>
+                <div class="w-12 h-12 rounded-full border-2 border-slate-700 bg-slate-800 flex items-center justify-center text-slate-300 font-bold" id="user-badge-icon">OP</div>
+            </div>
+        </div>
+    </div>
+    <div class="md:hidden border-t border-slate-800 bg-slate-900/90 backdrop-blur flex justify-around py-2 shrink-0" id="mobile-nav"></div>
+</header>
+
+<main class="grow overflow-y-auto">
+    <!-- Dashboard -->
+    <div id="panel-dashboard" class="tab-panel max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        <div class="bg-gradient-to-r from-indigo-900/60 via-slate-900 to-slate-900 rounded-2xl border border-slate-800 p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-xl relative overflow-hidden">
+            <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(99,102,241,0.15),transparent_40%)] pointer-events-none"></div>
+            <div class="space-y-2 relative">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-400/10 text-indigo-300 border border-indigo-500/20">Exame TAN-1000</span>
+                <h1 class="text-2xl md:text-3xl font-extrabold text-white tracking-tight">Portal Preparatório Oficial TCO</h1>
+                <p class="text-slate-400 max-w-2xl text-sm md:text-base">Prepare-se com eficácia usando simulador inteligente, cartões, diagramas interativos e modo adaptativo.</p>
+            </div>
+            <button onclick="startQuickExam()" class="px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 transition-all font-semibold text-white shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2 self-start md:self-auto hover:-translate-y-0.5 active:translate-y-0 relative">
+                <i class="fa-solid fa-play"></i>Iniciar Simulado Geral
+            </button>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between shadow-md card-glow">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider">Prontidão para o Exame</h2>
+                    <i class="fa-solid fa-circle-nodes text-indigo-500 text-lg"></i>
+                </div>
+                <div class="flex items-center gap-6 my-2">
+                    <div class="relative w-24 h-24 flex items-center justify-center">
+                        <svg class="w-full h-full transform -rotate-90">
+                            <circle cx="48" cy="48" r="40" stroke="currentColor" class="text-slate-800" stroke-width="8" fill="transparent"/>
+                            <circle cx="48" cy="48" r="40" stroke="currentColor" class="text-indigo-500 transition-all duration-700" stroke-width="8" fill="transparent" stroke-dasharray="251.2" id="readiness-gauge-circle" stroke-dashoffset="251.2"/>
+                        </svg>
+                        <span id="readiness-gauge-text" class="absolute text-xl font-extrabold text-white">0%</span>
+                    </div>
+                    <div class="space-y-1">
+                        <p class="text-sm text-slate-300 font-medium">Meta Recomendada:</p>
+                        <p class="text-xs text-slate-400">Mínimo de <strong class="text-emerald-400">80% de precisão</strong> e todos os tópicos revisados.</p>
+                    </div>
+                </div>
+                <div class="border-t border-slate-800 pt-4 mt-4 text-xs text-slate-400 flex items-center justify-between">
+                    <span>Respondidas: <strong id="stats-total-answered" class="text-white">0/30</strong></span>
+                    <span>Acertos: <strong id="stats-total-correct" class="text-emerald-400">0</strong></span>
+                </div>
+            </div>
+
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between shadow-md card-glow">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider">Histórico por Nível</h2>
+                    <i class="fa-solid fa-graduation-cap text-cyan-500 text-lg"></i>
+                </div>
+                <div class="space-y-3">
+                    <div>
+                        <div class="flex justify-between text-xs font-semibold mb-1"><span class="text-slate-300">Fácil</span><span id="stat-lvl-easy-text" class="text-slate-400">0%</span></div>
+                        <div class="w-full bg-slate-800 rounded-full h-2"><div id="stat-lvl-easy-bar" class="bg-emerald-500 h-2 rounded-full progress-smooth" style="width:0%"></div></div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-xs font-semibold mb-1"><span class="text-slate-300">Intermediário</span><span id="stat-lvl-med-text" class="text-slate-400">0%</span></div>
+                        <div class="w-full bg-slate-800 rounded-full h-2"><div id="stat-lvl-med-bar" class="bg-indigo-500 h-2 rounded-full progress-smooth" style="width:0%"></div></div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-xs font-semibold mb-1"><span class="text-slate-300">Difícil (Estilo Prova)</span><span id="stat-lvl-hard-text" class="text-slate-400">0%</span></div>
+                        <div class="w-full bg-slate-800 rounded-full h-2"><div id="stat-lvl-hard-bar" class="bg-rose-500 h-2 rounded-full progress-smooth" style="width:0%"></div></div>
+                    </div>
+                </div>
+                <div class="border-t border-slate-800 pt-4 mt-4 text-xs text-slate-400 flex items-center justify-between">
+                    <span>Última Atividade:</span>
+                    <span id="stat-last-activity" class="text-white">Nenhuma</span>
+                </div>
+            </div>
+
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between shadow-md relative overflow-hidden group card-glow">
+                <div class="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-indigo-600 to-cyan-500"></div>
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider">Laboratório Arquitetural</h2>
+                    <i class="fa-solid fa-code text-indigo-400 text-lg"></i>
+                </div>
+                <div class="space-y-2">
+                    <p class="text-sm text-slate-200 font-bold">Linear Chain Architecture (Porta 17472)</p>
+                    <p class="text-xs text-slate-400 leading-relaxed">Endpoints se auto-organizam em sub-redes locais para computar e agregar consultas ad-hoc, reduzindo gargalos de link WAN.</p>
+                </div>
+                <button onclick="switchTab('architecture')" class="mt-4 px-4 py-2.5 rounded-lg border border-slate-700 bg-slate-800/40 hover:bg-slate-800 transition-all font-semibold text-white text-xs flex items-center justify-center gap-2 group-hover:border-indigo-500/50">
+                    Visualizar Funcionamento <i class="fa-solid fa-arrow-right transition-transform group-hover:translate-x-1"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Smart Recommendations -->
+        <div id="smart-recommendations" class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-md hidden">
+            <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-wand-magic-sparkles text-amber-400"></i> Recomendações Inteligentes
+            </h3>
+            <div id="recommendations-list" class="space-y-2 text-sm"></div>
+        </div>
+
+        <!-- Domain Performance -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-md">
+            <h3 class="text-lg font-bold text-white mb-6 flex items-center gap-2">
+                <i class="fa-solid fa-clipboard-list text-indigo-400"></i> Performance por Domínio do Exame
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6" id="domain-grid"></div>
+        </div>
+
+        <!-- Wrong Questions Summary -->
+        <div id="wrong-questions-summary" class="bg-slate-900 border border-rose-900/30 rounded-2xl p-6 shadow-md hidden">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                    <h3 class="text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-circle-xmark text-rose-400"></i> Questões com Erro</h3>
+                    <p class="text-xs text-slate-400 mt-1">Você errou <strong id="wrong-count-text" class="text-rose-400">0</strong> questões. Treine novamente para fixar o conhecimento.</p>
+                </div>
+                <button onclick="startWrongQuestionsExam()" class="px-5 py-2.5 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 border border-rose-700/40 text-rose-300 text-xs font-bold transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-rotate-left"></i> Treinar Apenas Erros
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Study Guide -->
+    <div id="panel-study" class="tab-panel max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 hidden space-y-8">
+        <div class="flex flex-col lg:flex-row gap-8">
+            <aside class="w-full lg:w-80 shrink-0 lg:sticky lg:top-24 h-[calc(100vh-8rem)] overflow-y-auto bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-4">
+                <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider px-3 mb-1">Tópicos do Guia TCO</h4>
+                <div>
+                    <h5 class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest px-3 mb-2">Parte 1 — Fundamentos</h5>
+                    <div class="space-y-1">
+                        <button onclick="scrollToSection('sec-p1-1')" class="w-full text-left px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-colors block">1.1 Engenharia Linear Chain</button>
+                        <button onclick="scrollToSection('sec-p1-2')" class="w-full text-left px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-colors block">1.2 Fluxo Criptográfico</button>
+                        <button onclick="scrollToSection('sec-p1-3')" class="w-full text-left px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-colors block">1.3 Conceitos Fundamentais</button>
+                    </div>
+                </div>
+                <div>
+                    <h5 class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest px-3 mb-2">Parte 2 — Domínios do Exame</h5>
+                    <div class="space-y-1">
+                        <button onclick="scrollToSection('sec-p2-d1')" class="w-full text-left px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-colors block">D1: Asking Questions (~22%)</button>
+                        <button onclick="scrollToSection('sec-p2-d2')" class="w-full text-left px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-colors block">D2: Refining Questions (~23%)</button>
+                        <button onclick="scrollToSection('sec-p2-d3')" class="w-full text-left px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-colors block">D3: Taking Action (~15%)</button>
+                        <button onclick="scrollToSection('sec-p2-d4')" class="w-full text-left px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-colors block">D4: Navigation & Modules (~23%)</button>
+                        <button onclick="scrollToSection('sec-p2-d5')" class="w-full text-left px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-colors block">D5: Reporting & Export (~17%)</button>
+                    </div>
+                </div>
+                <div>
+                    <h5 class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest px-3 mb-2">Parte 3 — Labs & Extras</h5>
+                    <div class="space-y-1">
+                        <button onclick="scrollToSection('sec-p3-labs')" class="w-full text-left px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-colors block">10 Laboratórios Passo a Passo</button>
+                        <button onclick="scrollToSection('sec-p4-cheatsheet')" class="w-full text-left px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-colors block">Cheat Sheet de Queries</button>
+                        <button onclick="scrollToSection('sec-p5-mock')" class="w-full text-left px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-colors block">Questões Resolvidas</button>
+                        <button onclick="scrollToSection('sec-p6-traps')" class="w-full text-left px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-colors block">15 Pegadinhas Comuns</button>
+                        <button onclick="scrollToSection('sec-p7-strategy')" class="w-full text-left px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-colors block">Estratégia de Prova</button>
+                        <button onclick="scrollToSection('sec-p8-checklist')" class="w-full text-left px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-colors block">Checklist de Autoavaliação</button>
+                    </div>
+                </div>
+            </aside>
+
+            <div class="grow space-y-16 bg-slate-900 border border-slate-800 rounded-2xl p-6 md:p-8 shadow-md">
+                <!-- S1.1 -->
+                <section id="sec-p1-1" class="space-y-6 scroll-mt-24">
+                    <div class="flex items-center gap-3 text-indigo-400 font-bold text-xl border-b border-slate-800 pb-3"><div class="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-sm"><i class="fa-solid fa-network-wired"></i></div>1.1 A Engenharia por trás da Linear Chain Architecture</div>
+                    <p class="text-slate-300 text-sm md:text-base leading-relaxed">Os sistemas tradicionais baseiam-se em arquiteturas <strong>Hub-and-Spoke</strong> (Estrela), que falham em escala massiva (<strong class="text-indigo-400">100.000+ computadores</strong>) devido à saturação de banda WAN e latência excessiva do banco de dados central.</p>
+                    <div class="bg-slate-950 rounded-xl p-5 border border-indigo-900/40 space-y-3">
+                        <p class="text-xs text-indigo-300 font-semibold uppercase tracking-wider"><i class="fa-solid fa-code mr-2"></i>Fluxo de Dados: Eleição de Liderança e Redução de Banda</p>
+                        <p class="text-xs text-slate-400 leading-relaxed">Os agentes locais realizam <strong>Neighbor Discovery</strong> no mesmo domínio de broadcast (Camada 2). O Tanium Client eleito líder (<em>Subnet Leader</em>) atua como ponte para a WAN, distribuindo comandos (Forward Chain) e aggregando respostas (Backward Chain).</p>
+                        <div class="bg-slate-900 p-4 rounded-lg font-mono text-xs text-emerald-400">Tráfego WAN Tradicional = N * S  (Linear com número de agentes)<br>Tráfego WAN Tanium = C * S       (Constante, onde C = número de cadeias lógicas)</div>
+                    </div>
+                </section>
+
+                <!-- S1.2 -->
+                <section id="sec-p1-2" class="space-y-6 scroll-mt-24">
+                    <div class="flex items-center gap-3 text-indigo-400 font-bold text-xl border-b border-slate-800 pb-3"><div class="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-sm"><i class="fa-solid fa-shield-halved"></i></div>1.2 Tanium Client, Server e Fluxo Criptográfico</div>
+                    <p class="text-slate-300 text-sm md:text-base leading-relaxed">Como o Tanium opera com privilégios máximos (<code class="text-indigo-300 bg-slate-950 px-1.5 py-0.5 rounded">SYSTEM</code> / <code class="text-indigo-300 bg-slate-950 px-1.5 py-0.5 rounded">root</code>), a segurança baseia-se em criptografia assimétrica de curva elíptica e verificação de hashes.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs">
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800"><h6 class="text-white font-bold mb-2">tanium-init.dat</h6><p class="text-slate-400 leading-relaxed">Contém exclusivamente a chave pública do Tanium Server. Mensagens não assinadas pela chave privada correspondente são descartadas na porta 17472.</p></div>
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800"><h6 class="text-white font-bold mb-2">client.cfg</h6><p class="text-slate-400 leading-relaxed">Arquivo de parametrização local. Guarda IPs dos servidores, verbosidade de logs (LogVerbosityLevel) e regras de pareamento local.</p></div>
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800"><h6 class="text-white font-bold mb-2">Zone Server (DMZ)</h6><p class="text-slate-400 leading-relaxed">Proxy reverso TLS seguro intermediando comunicações externas das estações em trânsito pela Internet para o core corporativo interno.</p></div>
+                    </div>
+                </section>
+
+                <!-- S1.3 -->
+                <section id="sec-p1-3" class="space-y-6 scroll-mt-24">
+                    <div class="flex items-center gap-3 text-indigo-400 font-bold text-xl border-b border-slate-800 pb-3"><div class="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-sm"><i class="fa-solid fa-cubes"></i></div>1.3 Conceitos Fundamentais da Console Tanium</div>
+                    <div class="space-y-4 text-xs md:text-sm">
+                        <div class="p-4 bg-slate-950 rounded-xl border border-slate-800/80"><strong class="text-white block mb-1">Questions (Perguntas)</strong><span class="text-slate-400 leading-relaxed">Instruções de busca declarativas. Não interrogam banco central; solicitam que todos os computadores online calculem um script local de forma síncrona.</span></div>
+                        <div class="p-4 bg-slate-950 rounded-xl border border-slate-800/80"><strong class="text-white block mb-1">Sensors (Sensores) & Sandboxing</strong><span class="text-slate-400 leading-relaxed">Scripts estritamente <strong>Read-only</strong> com timeout padrão de 60 segundos, executados em sandbox restrito temporário.</span></div>
+                        <div class="p-4 bg-slate-950 rounded-xl border border-slate-800/80"><strong class="text-white block mb-1">Actions & Packages</strong><span class="text-slate-400 leading-relaxed">Ordem de modificação (escrita). O agente baixa fatias do pacote via cadeia local, descompacta e executa o script corretor.</span></div>
+                        <div class="p-4 bg-slate-950 rounded-xl border border-slate-800/80"><strong class="text-white block mb-1">Groups & Custom Tags</strong><span class="text-slate-400 leading-relaxed">Grupos Dinâmicos atualizam filiações por regras lógicas. Tags são gravadas persistentemente em arquivos locais do agente.</span></div>
+                    </div>
+                </section>
+
+                <!-- D1-D5 -->
+                <section id="sec-p2-d1" class="space-y-6 scroll-mt-24">
+                    <div class="flex items-center gap-3 text-indigo-400 font-bold text-xl border-b border-slate-800 pb-3"><div class="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-sm"><i class="fa-solid fa-magnifying-glass"></i></div>D1: Asking Questions (~22%)</div>
+                    <p class="text-slate-300 text-sm leading-relaxed">Fórmula do parser em linguagem natural: <code class="block bg-slate-950 p-3 rounded-lg text-indigo-300 font-mono text-xs mt-2 text-center">Get [Sensor] from all machines with [Condition]</code></p>
+                    <ul class="list-disc pl-5 text-xs text-slate-400 space-y-2"><li><strong>Get Clause:</strong> Define colunas de metadados (sensores) a extrair.</li><li><strong>From Clause:</strong> Define a origem. Padrão = todos os ativos corporativos.</li><li><strong>With Clause:</strong> Define filtros lógicos aplicados nos hosts.</li><li><strong>Foco TCO:</strong> Sensores Parametrizados usam colchetes <code class="text-indigo-300 bg-slate-950 px-1 rounded">[]</code>. Ex: <code class="text-indigo-300 bg-slate-950 px-1 rounded">Get File Exists[C:\temp\patch.log]</code></li></ul>
+                </section>
+
+                <section id="sec-p2-d2" class="space-y-6 scroll-mt-24">
+                    <div class="flex items-center gap-3 text-indigo-400 font-bold text-xl border-b border-slate-800 pb-3"><div class="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-sm"><i class="fa-solid fa-filter"></i></div>D2: Refining Questions (~23%)</div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800"><h6 class="text-white font-bold mb-2">Filtros Locais (Browser RAM)</h6><p class="text-slate-400 leading-relaxed">Processamento rápido apenas no navegador, sem reemitir Questions ao servidor.</p></div>
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800"><h6 class="text-white font-bold mb-2">Filtros no Servidor (Server-side)</h6><p class="text-slate-400 leading-relaxed">Emite nova pergunta com restrição, recalculando dados em tempo real dos endpoints.</p></div>
+                    </div>
+                    <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs"><span class="text-indigo-400 font-bold block mb-1">Mecanismo Drill Down:</span> Selecionar hosts em tabela existente e submeter nova pergunta focada neles.</div>
+                </section>
+
+                <section id="sec-p2-d3" class="space-y-6 scroll-mt-24">
+                    <div class="flex items-center gap-3 text-indigo-400 font-bold text-xl border-b border-slate-800 pb-3"><div class="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-sm"><i class="fa-solid fa-circle-play"></i></div>D3: Taking Action (~15%)</div>
+                    <ul class="list-disc pl-5 text-xs text-slate-400 space-y-2"><li><strong>Distribute Over:</strong> Randomiza e dilui downloads ao longo do tempo para evitar sobrecarga em storages.</li><li><strong>Action Statuses:</strong> <code class="text-slate-300 font-semibold">Scheduled</code> -> <code class="text-slate-300 font-semibold">Downloading</code> -> <code class="text-slate-300 font-semibold">Running</code> -> <code class="text-emerald-400 font-semibold">Completed (Exit 0)</code> ou <code class="text-rose-400 font-semibold">Failed (Exit != 0)</code></li><li><strong>One-time vs Scheduled:</strong> Agendadas recorrentes usam Saved Questions dinâmicas para conformidade contínua.</li><li><strong>Action Lock:</strong> Trava local no cliente impedindo execução forçada em hosts críticos.</li></ul>
+                </section>
+
+                <section id="sec-p2-d4" class="space-y-6 scroll-mt-24">
+                    <div class="flex items-center gap-3 text-indigo-400 font-bold text-xl border-b border-slate-800 pb-3"><div class="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-sm"><i class="fa-solid fa-compass"></i></div>D4: Navigation and Modules (~23%)</div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800"><strong class="text-white block mb-1">Interact:</strong><span class="text-slate-400">Cockpit central focado em perguntas em linguagem natural e ações ad-hoc.</span></div>
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800"><strong class="text-white block mb-1">Comply:</strong><span class="text-slate-400">Auditoria e conformidade com CVEs públicas e guias CIS de hardening.</span></div>
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800"><strong class="text-white block mb-1">Patch:</strong><span class="text-slate-400">Esteiras e aplicação controlada de atualizações em janelas de manutenção.</span></div>
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800"><strong class="text-white block mb-1">Threat Response:</strong><span class="text-slate-400">Forense em tempo real, Kernel Recorders e isolamento emergencial de endpoints.</span></div>
+                    </div>
+                </section>
+
+                <section id="sec-p2-d5" class="space-y-6 scroll-mt-24">
+                    <div class="flex items-center gap-3 text-indigo-400 font-bold text-xl border-b border-slate-800 pb-3"><div class="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-sm"><i class="fa-solid fa-file-export"></i></div>D5: Reporting & Export (~17%)</div>
+                    <ul class="list-disc pl-5 text-xs text-slate-400 space-y-2"><li><strong>Interact UI Export:</strong> CSV ou JSON direto do navegador.</li><li><strong>Tanium Connect:</strong> Barramento para SIEMs — Splunk HEC, Azure Sentinel, Syslog RFC 5424, AWS S3, ServiceNow.</li><li><strong>Delta Export:</strong> Compara varreduras atuais com cache e envia apenas hosts com mudanças, economizando banda WAN.</li></ul>
+                </section>
+
+                <!-- Labs -->
+                <section id="sec-p3-labs" class="space-y-8 scroll-mt-24">
+                    <div class="flex items-center gap-3 text-indigo-400 font-bold text-xl border-b border-slate-800 pb-3"><div class="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-sm"><i class="fa-solid fa-flask"></i></div>Parte 3 — 10 Laboratórios Práticos</div>
+                    <div id="labs-study-list" class="space-y-4"></div>
+                </section>
+
+                <!-- Cheat Sheet -->
+                <section id="sec-p4-cheatsheet" class="space-y-6 scroll-mt-24">
+                    <div class="flex items-center gap-3 text-indigo-400 font-bold text-xl border-b border-slate-800 pb-3"><div class="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-sm"><i class="fa-solid fa-list-check"></i></div>Parte 4 — Cheat Sheet de Queries Essenciais</div>
+                    <div class="overflow-x-auto border border-slate-800 rounded-xl"><table class="min-w-full divide-y divide-slate-800 text-xs"><thead class="bg-slate-950"><tr><th class="px-4 py-3 text-left font-bold text-slate-300">Query / Sintaxe</th><th class="px-4 py-3 text-left font-bold text-slate-300">Função & Propósito SOC</th></tr></thead><tbody class="divide-y divide-slate-800/60 text-slate-400" id="cheatsheet-tbody"></tbody></table></div>
+                </section>
+
+                <!-- Mock Questions -->
+                <section id="sec-p5-mock" class="space-y-6 scroll-mt-24">
+                    <div class="flex items-center gap-3 text-indigo-400 font-bold text-xl border-b border-slate-800 pb-3"><div class="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-sm"><i class="fa-solid fa-graduation-cap"></i></div>Parte 5 — Questões Resolvidas de Exemplo</div>
+                    <div class="space-y-4 text-xs md:text-sm">
+                        <div class="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-2"><span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-bold tracking-wider uppercase text-[10px]">Fácil</span><p class="text-white font-semibold">Qual porta padrão os Tanium Clients usam para conexões de cadeia linear na LAN?</p><p class="text-slate-400"><strong>Gabarito:</strong> <span class="text-emerald-400 font-bold">TCP 17472</span>. Porta exclusiva de barramento para mensagens de controle, vizinhança e cadeia linear.</p></div>
+                        <div class="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-2"><span class="px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 font-bold tracking-wider uppercase text-[10px]">Médio</span><p class="text-white font-semibold">O que ocorre se um endpoint na Linear Chain sofrer desligamento repentino?</p><p class="text-slate-400"><strong>Gabarito:</strong> <span class="text-emerald-400 font-bold">Vizinhos detectam a perda e reorganizam o anel dinamicamente</span> via Neighbor Timeout e Neighbor Discovery.</p></div>
+                        <div class="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-2"><span class="px-2 py-0.5 rounded bg-rose-500/10 text-rose-400 font-bold tracking-wider uppercase text-[10px]">Difícil</span><p class="text-white font-semibold">Qual a vantagem de configurar Delta Export no Tanium Connect?</p><p class="text-slate-400"><strong>Gabarito:</strong> <span class="text-emerald-400 font-bold">Transmitir apenas alterações em relação à última varredura</span>, poupando banda WAN e impedindo congestionamento no SIEM.</p></div>
+                    </div>
+                </section>
+
+                <!-- Traps -->
+                <section id="sec-p6-traps" class="space-y-6 scroll-mt-24">
+                    <div class="flex items-center gap-3 text-indigo-400 font-bold text-xl border-b border-slate-800 pb-3"><div class="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-sm"><i class="fa-solid fa-triangle-exclamation"></i></div>Parte 6 — Pegadinhas Comuns</div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                        <div class="bg-rose-950/10 border border-rose-900/30 rounded-xl p-4 space-y-1"><span class="font-bold text-rose-400 uppercase tracking-widest text-[9px] block">Pegadinha 1: Sensores não modificam nada</span><p class="text-slate-300">A prova sugere que um "Sensor" pode encerrar serviços. <strong>Falso!</strong> Sensores são Read-only. Modificações exigem <strong>Actions</strong> com <strong>Packages</strong>.</p></div>
+                        <div class="bg-rose-950/10 border border-rose-900/30 rounded-xl p-4 space-y-1"><span class="font-bold text-rose-400 uppercase tracking-widest text-[9px] block">Pegadinha 2: Colchetes vs Parênteses</span><p class="text-slate-300">Sensores Parametrizados: colchetes <code class="text-white bg-slate-950 px-1 rounded">[]</code>. Agrupamentos lógicos: parênteses <code class="text-white bg-slate-950 px-1 rounded">()</code>.</p></div>
+                        <div class="bg-rose-950/10 border border-rose-900/30 rounded-xl p-4 space-y-1"><span class="font-bold text-rose-400 uppercase tracking-widest text-[9px] block">Pegadinha 3: Local vs Server Filters</span><p class="text-slate-300">Filtros locais no browser processam em RAM sem retransmitir ao servidor.</p></div>
+                        <div class="bg-rose-950/10 border border-rose-900/30 rounded-xl p-4 space-y-1"><span class="font-bold text-rose-400 uppercase tracking-widest text-[9px] block">Pegadinha 4: TCP vs UDP</span><p class="text-slate-300">Descobrimentos usam pings, mas downloads de payloads pesados são estritamente <strong>TCP 17472</strong>.</p></div>
+                    </div>
+                </section>
+
+                <!-- Strategy -->
+                <section id="sec-p7-strategy" class="space-y-6 scroll-mt-24">
+                    <div class="flex items-center gap-3 text-indigo-400 font-bold text-xl border-b border-slate-800 pb-3"><div class="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-sm"><i class="fa-solid fa-hourglass-half"></i></div>Parte 7 — Estratégia de Prova</div>
+                    <div class="bg-slate-950 p-5 rounded-xl border border-slate-800 space-y-3 text-xs md:text-sm text-slate-300">
+                        <p><strong>Tempo:</strong> 105 minutos para ~60 questões.</p>
+                        <div class="space-y-2 leading-relaxed"><p>1. <strong>Triage Reverso:</strong> Resolva primeiro questões teóricas rápidas (1 min cada). Deixe cenários complexos para a segunda metade.</p><p>2. <strong>Decifre Queries por Blocos:</strong> Mentalmente divida em <em>Get Clause</em> e <em>With Clause</em>.</p><p>3. <strong>Descarte o Impossível:</strong> Elimine alternativas que aleguem que o Tanium Server trava quando endpoints ficam offline.</p></div>
+                    </div>
+                </section>
+
+                <!-- Checklist -->
+                <section id="sec-p8-checklist" class="space-y-6 scroll-mt-24">
+                    <div class="flex items-center gap-3 text-indigo-400 font-bold text-xl border-b border-slate-800 pb-3"><div class="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-sm"><i class="fa-solid fa-list-check"></i></div>Parte 8 — Checklist de Autoavaliação</div>
+                    <div class="space-y-2 text-xs md:text-sm text-slate-300" id="checklist-container"></div>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <!-- Simulator -->
+    <div id="panel-simulator" class="tab-panel max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 hidden space-y-6">
+        <!-- Setup -->
+        <div id="sim-setup" class="bg-slate-900 border border-slate-800 rounded-2xl p-6 md:p-8 space-y-6 shadow-lg">
+            <div class="space-y-2 text-center md:text-left">
+                <h2 class="text-2xl font-extrabold text-white">Simulador do Exame TCO</h2>
+                <p class="text-slate-400 text-sm">Treine com simulador dinâmico focado nos domínios do Blueprint Oficial Tanium TCO.</p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="space-y-2"><label class="text-sm font-bold text-slate-300 block">Dificuldade</label><select id="sim-filter-level" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-200 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"><option value="all">Misto (Todas — 15 questões)</option><option value="Fácil">Fácil (Conceitual — 5)</option><option value="Intermediário">Intermediário (Prático — 5)</option><option value="Difícil">Difícil (Estilo Prova — 5)</option></select></div>
+                <div class="space-y-2"><label class="text-sm font-bold text-slate-300 block">Modo</label><select id="sim-filter-mode" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-200 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"><option value="practice">Prática (Gabarito Explicado)</option><option value="exam">Exame (Resultados ao fim)</option></select></div>
+            </div>
+            <div class="flex items-center gap-3">
+                <label class="flex items-center gap-2 cursor-pointer text-sm text-slate-300">
+                    <input type="checkbox" id="sim-adaptive-toggle" class="w-4 h-4 text-indigo-600 bg-slate-900 border-slate-700 rounded focus:ring-indigo-500">
+                    <span>Modo Adaptativo <span class="text-[10px] text-indigo-400">(prioriza domínios fracos)</span></span>
+                </label>
+            </div>
+            <div class="bg-indigo-950/20 border border-indigo-900/30 rounded-xl p-4 text-xs text-slate-300 flex gap-3"><i class="fa-solid fa-circle-info text-indigo-400 text-lg shrink-0 mt-0.5"></i><p class="leading-relaxed">No <strong>Modo de Prática</strong>, após cada alternativa você recebe explicação detalhada (A, B, C, D). O <strong>Modo Adaptativo</strong> prioriza questões dos domínios com menor pontuação.</p></div>
+            <button onclick="startExamEngine()" class="w-full py-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 transition-all font-bold text-white shadow-lg shadow-indigo-600/20 text-sm tracking-wide">Iniciar Treinamento</button>
+        </div>
+
+        <!-- Player -->
+        <div id="sim-player" class="hidden space-y-6">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex items-center justify-between shadow-md">
+                <div class="flex items-center gap-4">
+                    <span id="player-question-counter" class="text-xs font-bold bg-indigo-900/50 border border-indigo-700/30 text-indigo-300 px-3 py-1.5 rounded-lg">Questão 1 de 15</span>
+                    <span id="player-question-level" class="text-xs font-bold bg-slate-800 text-slate-300 px-3 py-1.5 rounded-lg">Fácil</span>
+                </div>
+                <div class="text-sm text-slate-300 font-medium flex items-center gap-2"><i class="fa-regular fa-clock text-indigo-400"></i><span id="player-timer">00:00</span></div>
+            </div>
+            <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden"><div id="player-progress-bar" class="bg-indigo-500 h-1.5 progress-smooth" style="width:0%"></div></div>
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 md:p-8 space-y-6 shadow-lg">
+                <span id="player-question-category" class="text-xs text-slate-400 font-bold uppercase tracking-widest block"></span>
+                <h3 id="player-question-text" class="text-lg md:text-xl font-bold text-white leading-relaxed"></h3>
+                <div id="player-options-container" class="space-y-3"></div>
+                <div class="flex justify-between items-center border-t border-slate-800 pt-6 mt-6">
+                    <button onclick="quitExam()" class="px-5 py-2.5 text-slate-400 hover:text-white transition-colors text-xs font-semibold">Sair</button>
+                    <button id="player-submit-btn" onclick="submitAnswer()" class="px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 transition-all font-semibold text-white text-xs shadow-md">Confirmar Resposta</button>
+                </div>
+            </div>
+            <!-- Explanation -->
+            <div id="sim-explanation-panel" class="hidden bg-slate-900 border border-slate-800 rounded-2xl p-6 md:p-8 space-y-6 shadow-lg">
+                <div id="explanation-alert-badge" class="flex items-center gap-2 font-bold text-sm px-3 py-1.5 rounded-lg w-fit"></div>
+                <div class="space-y-4">
+                    <h4 class="text-white font-extrabold text-base flex items-center gap-2"><i class="fa-solid fa-graduation-cap text-indigo-400"></i> Explicação Completa</h4>
+                    <div class="space-y-3 text-xs md:text-sm">
+                        <div class="p-3 bg-slate-950 rounded-xl border border-slate-800/80"><span class="font-bold text-slate-200">A)</span> <span id="explanation-opt-a" class="text-slate-400"></span></div>
+                        <div class="p-3 bg-slate-950 rounded-xl border border-slate-800/80"><span class="font-bold text-slate-200">B)</span> <span id="explanation-opt-b" class="text-slate-400"></span></div>
+                        <div class="p-3 bg-slate-950 rounded-xl border border-slate-800/80"><span class="font-bold text-slate-200">C)</span> <span id="explanation-opt-c" class="text-slate-400"></span></div>
+                        <div class="p-3 bg-slate-950 rounded-xl border border-slate-800/80"><span class="font-bold text-slate-200">D)</span> <span id="explanation-opt-d" class="text-slate-400"></span></div>
+                    </div>
+                    <div class="bg-indigo-950/20 border border-indigo-900/30 rounded-xl p-4 text-xs text-slate-300"><strong class="text-indigo-400 font-bold block">Resumo:</strong><p id="explanation-overall-summary" class="leading-relaxed mt-1"></p></div>
+                </div>
+                <button onclick="nextQuestion()" class="w-full py-4 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 transition-all font-bold text-white text-xs">Próxima Pergunta <i class="fa-solid fa-arrow-right ml-1"></i></button>
+            </div>
+        </div>
+
+        <!-- Results -->
+        <div id="sim-results" class="hidden bg-slate-900 border border-slate-800 rounded-2xl p-6 md:p-8 text-center space-y-8 shadow-lg">
+            <div class="w-20 h-20 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center text-3xl mx-auto shadow-xl"><i class="fa-solid fa-circle-check"></i></div>
+            <div class="space-y-2"><h2 class="text-2xl font-extrabold text-white">Treinamento Concluído!</h2><p class="text-slate-400 text-sm">Confira seu desempenho detalhado.</p></div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-lg mx-auto">
+                <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 text-center"><span class="text-xs text-slate-500 font-medium block">Total</span><span id="res-total-questions" class="text-2xl font-bold text-white">15</span></div>
+                <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 text-center"><span class="text-xs text-slate-500 font-medium block">Corretas</span><span id="res-correct-questions" class="text-2xl font-bold text-emerald-400">0</span></div>
+                <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 text-center"><span class="text-xs text-slate-500 font-medium block">Precisão</span><span id="res-accuracy" class="text-2xl font-bold text-indigo-400">0%</span></div>
+                <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 text-center"><span class="text-xs text-slate-500 font-medium block">Tempo</span><span id="res-time" class="text-2xl font-bold text-white">00:00</span></div>
+            </div>
+            <div id="res-performance-message" class="text-sm font-medium text-slate-300 max-w-md mx-auto"></div>
+            <div class="flex flex-col sm:flex-row justify-center gap-4">
+                <button onclick="returnToSetup()" class="px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 transition-all font-semibold text-white text-xs">Treinar Novamente</button>
+                <button onclick="switchTab('dashboard')" class="px-6 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 transition-all font-semibold text-white text-xs">Dashboard</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Flashcards -->
+    <div id="panel-flashcards" class="tab-panel max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 hidden space-y-8">
+        <div class="text-center md:text-left space-y-2">
+            <h2 class="text-2xl font-extrabold text-white">Flashcards de Sensores Tanium</h2>
+            <p class="text-slate-400 text-sm">Memorize os sensores e consultas mais cobradas na prova TAN-1000.</p>
+        </div>
+        <div class="flex flex-col items-center justify-center space-y-6">
+            <div class="w-full max-w-md h-80 flip-card relative cursor-pointer" onclick="toggleCardFlip()">
+                <div class="flip-card-inner w-full h-full relative" id="flashcard-inner">
+                    <div class="flip-card-front bg-slate-900 border border-slate-800 p-8 flex flex-col justify-between items-center shadow-xl">
+                        <span class="text-xs text-indigo-400 font-bold tracking-widest uppercase">Pergunta / Sensor</span>
+                        <div class="text-center space-y-4"><h3 id="card-front-title" class="text-lg font-extrabold text-white"></h3><p class="text-xs text-slate-500 font-medium">Clique para ver a resposta</p></div>
+                        <div class="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 text-xs"><i class="fa-solid fa-arrows-rotate animate-pulse"></i></div>
+                    </div>
+                    <div class="flip-card-back bg-gradient-to-tr from-indigo-950 to-slate-900 border border-indigo-500/30 p-8 flex flex-col justify-between items-center shadow-xl">
+                        <span class="text-xs text-emerald-400 font-bold tracking-widest uppercase">Resposta & Sintaxe</span>
+                        <div class="text-center space-y-4 w-full"><code id="card-back-code" class="block bg-slate-950 p-3 rounded-lg text-xs md:text-sm font-semibold text-indigo-300 border border-indigo-900/40 select-all"></code><p id="card-back-desc" class="text-slate-300 text-xs md:text-sm leading-relaxed"></p></div>
+                        <span class="text-xs text-indigo-400 font-semibold"><i class="fa-solid fa-check-circle mr-1"></i>Memorizado</span>
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center gap-6">
+                <button onclick="prevCard()" class="w-12 h-12 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 flex items-center justify-center text-slate-300 transition-all"><i class="fa-solid fa-arrow-left"></i></button>
+                <span id="flashcard-counter" class="text-sm font-semibold text-slate-400">Card 1 de 15</span>
+                <button onclick="nextCard()" class="w-12 h-12 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 flex items-center justify-center text-slate-300 transition-all"><i class="fa-solid fa-arrow-right"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Labs -->
+    <div id="panel-labs" class="tab-panel max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 hidden space-y-8">
+        <div class="text-center md:text-left space-y-2">
+            <h2 class="text-2xl font-extrabold text-white">Laboratório Interativo: Interact Sandbox</h2>
+            <p class="text-slate-400 text-sm">Treine a sintaxe real das consultas. Digite ou selecione um cenário para simular.</p>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-1 bg-slate-900 border border-slate-800 rounded-2xl p-4 h-[600px] overflow-y-auto space-y-3"><h3 class="text-sm font-bold text-slate-300 mb-2 uppercase tracking-wider sticky top-0 bg-slate-900 pb-2 z-10 border-b border-slate-800">Cenários</h3><div id="lab-scenarios-list" class="space-y-3"></div></div>
+            <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col shadow-lg h-[600px]">
+                <div class="relative w-full mb-6 shrink-0">
+                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none"><i class="fa-solid fa-magnifying-glass text-indigo-500 text-lg"></i></div>
+                    <input type="text" id="lab-interact-input" class="w-full bg-slate-950 border border-slate-700 text-white rounded-xl pl-12 pr-24 py-4 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/50 font-mono text-xs sm:text-sm shadow-inner transition-all" placeholder="Ask a Question... (ex: Get Computer Name...)">
+                    <button onclick="executeInteractQuery()" class="absolute inset-y-2 right-2 px-5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-lg transition-colors shadow-md shadow-indigo-900/50 flex items-center gap-2"><i class="fa-solid fa-paper-plane"></i> Ask</button>
+                </div>
+                <div id="lab-progress-container" class="hidden w-full mb-4 shrink-0 bg-slate-950 border border-slate-800 p-3 rounded-xl">
+                    <div class="flex justify-between text-xs text-slate-400 font-semibold mb-2"><span class="flex items-center gap-2"><i class="fa-solid fa-satellite-dish text-indigo-400 animate-pulse"></i> Sincronizando Cadeia Linear...</span><span id="lab-progress-text" class="text-indigo-300">0%</span></div>
+                    <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden shadow-inner"><div id="lab-progress-bar" class="bg-gradient-to-r from-indigo-500 to-cyan-400 h-2 transition-all duration-100 ease-out" style="width:0%"></div></div>
+                </div>
+                <div class="flex-grow bg-slate-950 border border-slate-800 rounded-xl overflow-hidden flex flex-col relative shadow-inner">
+                    <div class="bg-slate-900 border-b border-slate-800 px-4 py-2 flex items-center justify-between shrink-0"><span class="text-xs font-bold text-slate-300 uppercase tracking-widest flex items-center gap-2"><i class="fa-solid fa-table text-indigo-400"></i> Resultados</span><div class="flex gap-3"><button class="text-slate-500 hover:text-indigo-400 text-xs"><i class="fa-solid fa-filter"></i></button><button class="text-slate-500 hover:text-emerald-400 text-xs"><i class="fa-solid fa-download"></i></button></div></div>
+                    <div id="lab-results-content" class="p-4 flex-grow overflow-y-auto text-xs text-slate-400 font-mono flex items-center justify-center"><div class="text-center space-y-3 opacity-40"><i class="fa-solid fa-server text-4xl mb-2"></i><p class="font-sans font-semibold">Simulador Ocioso</p><p class="text-[10px] max-w-xs mx-auto">Selecione um cenário ou digite a query e clique em Ask.</p></div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Architecture -->
+    <div id="panel-architecture" class="tab-panel max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 hidden space-y-8">
+        <div class="text-center md:text-left space-y-2">
+            <h2 class="text-2xl font-extrabold text-white">Visualizador da Linear Chain</h2>
+            <p class="text-slate-400 text-sm">Visualize a vantagem de rede do Tanium em tempo real.</p>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-lg space-y-6">
+            <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="triggerSimulation('linear')" class="px-4 py-2 text-xs font-bold rounded-lg bg-indigo-600 text-white shadow-md shadow-indigo-600/15">Simular Cadeia Linear (Tanium)</button>
+                    <button onclick="triggerSimulation('hub')" class="px-4 py-2 text-xs font-bold rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-300">Simular Estrela (Hub & Spoke)</button>
+                </div>
+                <div id="sim-status-banner" class="text-xs text-indigo-400 font-semibold bg-indigo-950/40 px-3 py-1.5 rounded-lg">Pronto</div>
+            </div>
+            <div class="relative w-full h-80 bg-slate-950 rounded-xl border border-slate-800 overflow-hidden" id="simulation-canvas-wrapper">
+                <svg class="w-full h-full" id="sim-svg-viewport"></svg>
+                <div class="absolute bottom-4 left-4 bg-slate-900/90 border border-slate-800/80 p-3 rounded-lg text-[10px] md:text-xs text-slate-400 space-y-1 backdrop-blur-sm pointer-events-none">
+                    <p><strong class="text-white">Porta:</strong> TCP 17472</p>
+                    <p><strong class="text-white">WAN:</strong> <span id="hud-wan-packets" class="text-red-400">0</span></p>
+                    <p><strong class="text-white">LAN:</strong> <span id="hud-lan-packets" class="text-emerald-400">0</span></p>
+                </div>
+            </div>
+            <div class="text-xs text-slate-400 leading-relaxed max-w-3xl"><strong class="text-slate-300 block mb-1">Diferença Visual:</strong>No modelo <strong>Linear (Tanium)</strong>, o servidor envia a pergunta apenas ao líder da sub-rede remota via WAN. Toda distribuição subsequente é feita localmente na LAN. No modelo <strong>Estrela (Tradicional)</strong>, o servidor conversa diretamente com todas as máquinas gerando gargalos.</div>
+        </div>
+    </div>
+</main>
+
+<script>
+// ============================================================
+// DATA
+// ============================================================
+
+const TABS = [
+    { id:'dashboard',    icon:'fa-chart-line',       label:'Dashboard',   mobile:'Dash' },
+    { id:'study',        icon:'fa-book-open',        label:'Guia de Estudos', mobile:'Guia' },
+    { id:'simulator',    icon:'fa-laptop-code',      label:'Simulador',   mobile:'Simulado' },
+    { id:'flashcards',   icon:'fa-rectangle-list',   label:'Flashcards',  mobile:'Cards' },
+    { id:'labs',         icon:'fa-terminal',         label:'Labs Práticos', mobile:'Labs' },
+    { id:'architecture', icon:'fa-network-wired',    label:'Rede',        mobile:'Rede' }
+];
+
+const DOMAINS = [
+    { id:'d1', name:'D1: Asking Questions', weight:22, short:'D1' },
+    { id:'d2', name:'D2: Refining Questions', weight:23, short:'D2' },
+    { id:'d3', name:'D3: Taking Action', weight:15, short:'D3' },
+    { id:'d4', name:'D4: Nav & Modules', weight:23, short:'D4' },
+    { id:'d5', name:'D5: Reporting & Export', weight:17, short:'D5' }
+];
+
+const CHECKLIST_ITEMS = [
+    "Compreendo a eleição e o papel de Subnet Leader na Linear Chain no TCP 17472.",
+    "Sei que sensores são estritamente Read-only e possuem timeout de 60s.",
+    "Entendo o papel do arquivo tanium-init.dat e client.cfg.",
+    "Sei diferenciar One-time Actions de Scheduled Actions.",
+    "Domino as integrações do Connect e Delta Export.",
+    "Sei a diferença entre filtros Locais e Server-side.",
+    "Conheço os módulos: Interact, Comply, Patch, Threat Response.",
+    "Domino a sintaxe Get...from...with e sensores parametrizados.",
+    "Entendo o mecanismo Drill Down para refinar perguntas.",
+    "Sei o que é Action Lock e Distribute Over."
+];
+
+const CHEATSHEET_DATA = [
+    { query:"Get Computer Name from all machines", purpose:"Inventário de conectividade e identificação física." },
+    { query:"Get Operating System from all machines", purpose:"Mapeamento de SOs para conformidade e patches." },
+    { query:"Get Open Ports from all machines", purpose:"Varredura rápida de portas de rede em escuta ativa." },
+    { query:"Get Local Users from all machines", purpose:"Auditoria de persistências de invasores em contas locais." },
+    { query:"Get File MD5[C:\\Windows\\System32\\cmd.exe] from all machines", purpose:"Checksum de binários para triar adulterações de malware." },
+    { query:"Get Installed Applications from all machines", purpose:"Mapeia aplicações ativas no painel corporativo." },
+    { query:"Get Custom Tags from all machines", purpose:"Auditoria de tags de conformidade e segmentação." },
+    { query:"Get Windows Service State[Spooler] from all machines", purpose:"Verificação de status de serviços específicos." },
+    { query:"Get File Exists[C:\\temp\\patch.log] from all machines", purpose:"Verificação da existência de arquivos específicos." },
+    { query:"Get Disk Encryption from all machines", purpose:"Auditoria de criptografia BitLocker/FileVault." }
+];
+
+const LABS_DATA = [
+    { id:1, title:"Consultas Básicas no Interact", obj:"Coletar nomes de computadores e SOs.", cmd:"Get Computer Name and Operating System from all machines", type:"query" },
+    { id:2, title:"Isolando com Filtros Complexos", obj:"Isole computadores com Spooler ativo.", cmd:'Get Windows Service State[Spooler] from all machines with ( Operating System containing "Windows Server" and Windows Service State[Spooler] equivalent to "Running" )', type:"query" },
+    { id:3, title:"Criação de Grupos Dinâmicos", obj:"Grupo automatizado para servidores DEV Linux.", cmd:'Operating System containing "Linux" and Computer Name containing "dev-"', type:"rule" },
+    { id:4, title:"Custom Tagging via Action", obj:"Tag 'PCI-Scope' persistente para auditoria.", cmd:"Interact -> Filtrar pci-prod -> Deploy Action -> Custom Tagging - Add Tags -> 'PCI-Scope'", type:"action" },
+    { id:5, title:"Consultando Custom Tags", obj:"Auditar aplicações em hosts com tag corporativa.", cmd:'Get Custom Tags and Installed Applications from all machines with Custom Tags containing "PCI-Scope"', type:"query" },
+    { id:6, title:"Parando Serviço Não Autorizado", obj:"Desativar FTP 'QuickFTP' em Linux.", cmd:'Deploy Action -> Core Services - Stop Service [Linux] -> "QuickFTP"', type:"action" },
+    { id:7, title:"Ação Recorrente de Conformidade", obj:"Scheduled Action para antivírus a cada 2h.", cmd:'Deploy Action -> Core Services - Start Service [Windows] -> Schedule: Recurring 2h', type:"action" },
+    { id:8, title:"Dashboard Executivo no Reporting", obj:"Painel de BitLocker/FileVault para CISO.", cmd:'Reporting -> Create Dashboard -> Painel gráfico -> Saved Question criptografia disco', type:"action" },
+    { id:9, title:"Exportando Inventário CSV", obj:"CSV de Microsoft Office para auditores.", cmd:'Get Installed Applications with Microsoft Office -> Export -> CSV', type:"query" },
+    { id:10, title:"Integração com Splunk via Connect", obj:"Alertas Threat Response ao Splunk HEC.", cmd:'Connect -> Create Connection -> Source: Threat Response Alerts -> Dest: Splunk (HEC)', type:"action" },
+    { id:11, title:"Query de Usuários Locais", obj:"Auditar contas locais para detecção de persistência.", cmd:"Get Local Users from all machines", type:"query" },
+    { id:12, title:"Verificação de Portas Abertas", obj:"Triagem de portas em escuta ativa.", cmd:"Get Open Ports from all machines", type:"query" },
+    { id:13, title:"Validação de Hash de Sistema", obj:"Verificar integridade do cmd.exe via MD5.", cmd:"Get File MD5[C:\\Windows\\System32\\cmd.exe] from all machines", type:"query" },
+    { id:14, title:"Drill Down em Hosts Específicos", obj:"Refinar resultados focando em hosts selecionados.", cmd:"Selecionar hosts -> Nova pergunta -> Get [Sensor] from selected machines", type:"action" },
+    { id:15, title:"Delta Export via Connect", obj:"Exportar apenas mudanças para SIEM.", cmd:'Connect -> Create Connection -> Source: Saved Question -> Dest: Splunk -> Enable Delta Export', type:"action" }
+];
+
+const EXAM_QUESTIONS = [
+    { id:1, level:"Fácil", category:"D4: Navigation and Modules", question:"Qual porta e protocolo padrão os Tanium Clients usam para comunicação de cadeia linear?", options:["TCP 443","TCP 8080","TCP 17472","UDP 53"], correctIndex:2, explanations:["Incorreta. TCP 443 é reservada para HTTPS.","Incorreta. TCP 8080 é usada para proxies e servidores de teste.","Correta! TCP 17472 é o barramento exclusivo do Tanium Client para cadeia linear na LAN.","Incorreta. UDP 53 é o protocolo de transporte para resolução DNS."], overallSummary:"Porta TCP 17472 = canal exclusivo do ecossistema Tanium Client." },
+    { id:2, level:"Fácil", category:"D1: Asking Questions", question:"Na sintaxe do Interact, o que a cláusula 'Get' define?", options:["Os filtros lógicos","As colunas de metadados (sensores) a extrair","A origem dos dados","O agendamento de execução"], correctIndex:1, explanations:["Incorreta. Filtros lógicos são definidos pela cláusula 'with'.","Correta! 'Get' define quais sensores (colunas) serão extraídos dos endpoints.","Incorreta. A origem é definida pela cláusula 'from'.","Incorreta. Agendamento é configurado em Saved Questions."], overallSummary:"Get = sensores | From = origem | With = filtros condicionais." },
+    { id:3, level:"Fácil", category:"D1: Asking Questions", question:"Qual é o timeout padrão de execução de um Sensor no endpoint?", options:["30 segundos","60 segundos","120 segundos","300 segundos"], correctIndex:1, explanations:["Incorreta. 30s é muito curto para a maioria dos sensores.","Correta! O timeout padrão é de 60 segundos, executados em sandbox restrito.","Incorreta. 120s excede o padrão.","Incorreta. 300s seria extremamente longo."], overallSummary:"Sensores = timeout 60s + sandbox restrito temporário." },
+    { id:4, level:"Fácil", category:"D3: Taking Action", question:"Sensores podem modificar o estado de um endpoint (encerrar serviços, deletar arquivos)?", options:["Sim, sensores podem executar qualquer operação","Sim, mas apenas com permissão admin","Não, sensores são estritamente Read-only","Não, sensores só funcionam offline"], correctIndex:2, explanations:["Incorreta. Pegadinha clássica — sensores NÃO modificam nada.","Incorreta. Permissões não alteram a natureza read-only.","Correta! Sensores são Read-only. Modificações requerem Actions com Packages.","Incorreta. Sensores funcionam online, mas nunca modificam."], overallSummary:"Sensors = Read-only | Actions + Packages = escrita/modificação." },
+    { id:5, level:"Fácil", category:"D4: Navigation and Modules", question:"Qual módulo é focado em auditoria de CVEs e guias CIS de hardening?", options:["Interact","Comply","Patch","Threat Response"], correctIndex:1, explanations:["Incorreta. Interact é cockpit para perguntas e ações ad-hoc.","Correta! Comply = auditoria e conformidade com CVEs e CIS.","Incorreta. Patch gerencia atualizações em janelas de manutenção.","Incorreta. Threat Response = forense e isolamento emergencial."], overallSummary:"Comply = CVEs + CIS | Patch = updates | Threat Response = forense." },
+    { id:6, level:"Fácil", category:"D5: Reporting & Export", question:"Quais formatos de exportação o Interact UI oferece?", options:["PDF e DOCX","CSV e JSON","XML e YAML","XLSX e HTML"], correctIndex:1, explanations:["Incorreta. PDF/DOCX não são formatos nativos do Interact.","Correta! Interact exporta em CSV ou JSON diretamente do navegador.","Incorreta. XML/YAML não são suportados nativamente.","Incorreta. XLSX/HTML não são os formatos padrão."], overallSummary:"Interact UI Export = CSV ou JSON." },
+    { id:7, level:"Fácil", category:"D4: Navigation and Modules", question:"O que contém o arquivo tanium-init.dat?", options:["A chave privada do Server","A chave pública do Server","Logs de auditoria","Configurações de rede"], correctIndex:1, explanations:["Incorreta. Chave privada nunca é distribuída aos clientes.","Correta! Contém exclusivamente a chave pública do Tanium Server.","Incorreta. Logs ficam em outros arquivos.","Incorreta. Configurações de rede ficam no client.cfg."], overallSummary:"tanium-init.dat = chave pública do Server | client.cfg = configs locais." },
+    { id:8, level:"Fácil", category:"D1: Asking Questions", question:"Sensores parametrizados usam qual delimitador na sintaxe?", options:["Parênteses ()","Chaves {}","Colchetes []","Aspas \"\""], correctIndex:2, explanations:["Incorreta. Parênteses são para agrupamentos lógicos na cláusula 'with'.","Incorreta. Chaves não são usadas na sintaxe de sensores.","Correta! Colchetes []. Ex: File Exists[C:\\temp\\patch.log]","Incorreta. Aspas são para valores de strings nos filtros."], overallSummary:"Colchetes [] = parâmetros de sensores | Parênteses () = agrupamento lógico." },
+    { id:9, level:"Fácil", category:"D4: Navigation and Modules", question:"Com qual nível de privilégio o Tanium Client opera?", options:["Usuário padrão","Administrador local","SYSTEM / root","Convidado"], correctIndex:2, explanations:["Incorreta. Privilégios padrão são insuficientes.","Incorreta. Admin local é insuficiente para muitas operações.","Correta! SYSTEM (Windows) ou root (Linux).","Incorreta. Convidado não tem permissões suficientes."], overallSummary:"Tanium Client = SYSTEM (Windows) / root (Linux)." },
+    { id:10, level:"Fácil", category:"D4: Navigation and Modules", question:"O que é o Zone Server no ecossistema Tanium?", options:["Servidor de DNS interno","Proxy reverso TLS na DMZ","Banco de dados centralizado","Servidor de atualização de agentes"], correctIndex:1, explanations:["Incorreta. Zone Server não é um servidor DNS.","Correta! Proxy reverso TLS seguro na DMZ intermediando comunicações externas.","Incorreta. Não é repositório de logs.","Incorreta. Atualizações são gerenciadas por outros mecanismos."], overallSummary:"Zone Server = proxy reverso TLS na DMZ." },
+    { id:11, level:"Intermediário", category:"D4: Navigation and Modules", question:"O que ocorre quando um endpoint na Linear Chain cai repentinamente?", options:["O Server trava","A cadeia precisa de restart manual","Vizinhos detectam e reorganizam o anel dinamicamente","O endpoint é removido permanentemente"], correctIndex:2, explanations:["Incorreta. O Server não depende de um único endpoint.","Incorreta. A reorganização é automática.","Correta! Vizinhos detectam a perda via Neighbor Timeout e reorganizam o anel autonomicamente.","Incorreta. O endpoint pode retornar normalmente."], overallSummary:"Linear Chain é auto-reparável: Neighbor Discovery + Neighbor Timeout." },
+    { id:12, level:"Intermediário", category:"D2: Refining Questions", question:"Qual a diferença entre Filtros Locais e Server-side?", options:["Locais são mais lentos","Locais processam no navegador sem retransmitir; Server-side emite nova pergunta","Não existe diferença","Server-side é menos preciso"], correctIndex:1, explanations:["Incorreta. Filtros Locais são mais rápidos.","Correta! Local = RAM do navegador sem tráfego. Server-side = nova pergunta aos endpoints.","Incorreta. Existe diferença significativa no impacto de rede.","Incorreta. Server-side é recalculado em tempo real nos endpoints."], overallSummary:"Local = browser (zero tráfego) | Server = nova pergunta (tráfego de rede)." },
+    { id:13, level:"Intermediário", category:"D3: Taking Action", question:"Qual a finalidade do 'Distribute Over'?", options:["Distribuir para todos servidores simultaneamente","Randomizar e diluir downloads ao longo do tempo","Migrar action para outro Server","Criar backups antes da execução"], correctIndex:1, explanations:["Incorreta. Não afeta distribuição entre servidores.","Correta! Dilui downloads no tempo, evitando sobrecarga em storages e VDIs.","Incorreta. Não há migração entre servidores.","Incorreta. Backups são configurados separadamente."], overallSummary:"Distribute Over = dilui downloads no tempo. Essencial em VDIs." },
+    { id:14, level:"Intermediário", category:"D5: Reporting & Export", question:"O que é Delta Export no Tanium Connect?", options:["Exporta todos os dados a cada execução","Exporta apenas dados que mudaram desde a última varredura","Exporta em formato binário diferencial","Exporta apenas dados de endpoints com falha"], correctIndex:1, explanations:["Incorreta. Exportar tudo desperdiçaria banda.","Correta! Compara varreduras atuais com cache e envia apenas hosts com mudanças.","Incorreta. O formato não é binário diferencial.","Incorreta. Filtra por mudanças, não por falhas."], overallSummary:"Delta Export = apenas mudanças. Economiza WAN e storage SIEM." },
+    { id:15, level:"Intermediário", category:"D3: Taking Action", question:"O que é Action Lock?", options:["Bloqueio de rede para downloads","Trava local no cliente para impedir execução forçada em hosts críticos","Configuração de firewall no Server","Mecanismo de criptografia de actions"], correctIndex:1, explanations:["Incorreta. Não afeta downloads de rede.","Correta! Trava local no cliente que impede execução forçada de ações em hosts críticos.","Incorreta. Não é configuração de firewall.","Incorreta. Não é mecanismo de criptografia."], overallSummary:"Action Lock = trava local para proteger hosts críticos." },
+    { id:16, level:"Intermediário", category:"D2: Refining Questions", question:"O que é o mecanismo Drill Down?", options:["Aprofundar logs de auditoria","Selecionar hosts de tabela e submeter nova pergunta focada neles","Sensor que acessa subdiretórios","Técnica de compressão de dados"], correctIndex:1, explanations:["Incorreta. Não está relacionado a logs.","Correta! Selecionar hosts existentes e submeter nova pergunta diferente focada neles.","Incorreta. Não é sensor de arquivos.","Incorreta. Não é compressão."], overallSummary:"Drill Down = selecionar hosts + nova pergunta. Iteração progressiva." },
+    { id:17, level:"Intermediário", category:"D4: Navigation and Modules", question:"O módulo Threat Response oferece:", options:["Gerenciamento de patches","Auditoria PCI-DSS","Forense em tempo real e isolamento emergencial","Backup e recuperação"], correctIndex:2, explanations:["Incorreta. Patches = módulo Patch.","Incorreta. PCI-DSS pode ser via Comply.","Correta! Forense real-time, Kernel Recorders e isolamento emergencial de rede.","Incorreta. Backup não é função do Threat Response."], overallSummary:"Threat Response = forense + Recorders + isolamento emergencial." },
+    { id:18, level:"Intermediário", category:"D3: Taking Action", question:"Diferença entre One-time e Scheduled Actions?", options:["One-time roda 1x; Scheduled usa Saved Questions dinâmicas para conformidade contínua","Não existe diferença","One-time é mais segura","Scheduled só funciona em horário comercial"], correctIndex:0, explanations:["Correta! One-time = execução única. Scheduled = recorrente com Saved Questions dinâmicas para novos endpoints.","Incorreta. Existe diferença significativa.","Incorreta. Segurança depende da configuração, não do tipo.","Incorreta. Scheduled opera continuamente."], overallSummary:"One-time = 1x | Scheduled = recorrente com Saved Questions dinâmicas." },
+    { id:19, level:"Intermediário", category:"D5: Reporting & Export", question:"O Tanium Connect envia feeds para:", options:["Apenas Splunk e Elasticsearch","Splunk HEC, Azure Sentinel, Syslog RFC 5424, AWS S3 e ServiceNow","Apenas produtos Tanium","Apenas Syslog locais"], correctIndex:1, explanations:["Incorreta. Suporta múltiplos destinos além desses.","Correta! Suporta Splunk HEC, Azure Sentinel, Syslog RFC 5424, AWS S3 e ServiceNow.","Incorreta. Integra com ferramentas de terceiros.","Incorreta. Suporta destinos remotos na nuvem."], overallSummary:"Tanium Connect = barramento para múltiplos SIEMs e plataformas." },
+    { id:20, level:"Intermediário", category:"D1: Asking Questions", question:"No Hub-and-Spoke tradicional, o principal gargalo em 100.000+ endpoints é:", options:["Falta de RAM nos servidores","Saturação de WAN e latência do banco central","Incompatibilidade de SOs","Falta de endereços IPv4"], correctIndex:1, explanations:["Incorreta. RAM pode ser expandida, não resolve o problema arquitetural.","Correta! Saturação de banda WAN e latência do banco relacional central.","Incorreta. Incompatibilidade de SO não é o gargalo.","Incorreta. IPv4 não é o problema central."], overallSummary:"Linear Chain resolve: saturação WAN + DB central que o Hub-and-Spoke não escala." },
+    { id:21, level:"Difícil", category:"D4: Navigation and Modules", question:"Na fórmula 'Tráfego WAN Tanium = C × S', o que representa 'C'?", options:["Número total de computadores","Número de cadeias lógicas","Capacidade de banda em Mbps","Número de servidores"], correctIndex:1, explanations:["Incorreta. 'N' = computadores na fórmula tradicional (N × S).","Correta! 'C' = número de cadeias lógicas. Tráfego WAN é constante, não linear.","Incorreta. Capacidade de banda não é variável desta fórmula.","Incorreta. 'C' não representa servidores."], overallSummary:"WAN Tradicional = N × S (linear) | WAN Tanium = C × S (constante). C = cadeias lógicas." },
+    { id:22, level:"Difícil", category:"D4: Navigation and Modules", question:"Mensagens na porta 17472 não assinadas pela chave privada correspondente são:", options:["Armazenadas em quarentena","Redirecionadas ao Zone Server","Descartadas preventivamente","Processadas com permissões reduzidas"], correctIndex:2, explanations:["Incorreta. Não existe quarentena para mensagens não assinadas.","Incorreta. Zone Server não recebe mensagens descartadas.","Correta! Descartadas preventivamente na porta 17472.","Incorreta. Não existe processamento com permissões reduzidas."], overallSummary:"Sem assinatura válida = descarte imediato. Criptografia de curva elíptica é a base de confiança." },
+    { id:23, level:"Difícil", category:"D1: Asking Questions", question:"Na query 'Get File Exists[C:\\temp\\patch.log] from all machines with ( OS containing \"Windows\" )', qual é o Sensor Parametrizado?", options:["Operating System","Custom Tags","File Exists[C:\\temp\\patch.log]","Windows"], correctIndex:2, explanations:["Incorreta. Operating System é sensor simples, sem parâmetros.","Incorreta. Custom Tags é sensor simples.","Correta! File Exists[C:\\temp\\patch.log] usa colchetes [] — sensor parametrizado.","Incorreta. 'Windows' é valor de filtro, não sensor."], overallSummary:"Presença de [] com valor = sensor parametrizado na cláusula Get." },
+    { id:24, level:"Difícil", category:"D5: Reporting & Export", question:"Principal vantagem do Delta Export no Connect para infraestrutura?", options:["Reduz latência do Tanium Server","Aumenta velocidade de indexação no Splunk","Transmite apenas alterações, poupando WAN e storage SIEM","Elimina licenciamento do Splunk"], correctIndex:2, explanations:["Incorreta. Não afeta latência do Server.","Incorreta. Velocidade de indexação é independente do método.","Correta! Transmite apenas alterações, poupando WAN e impedindo congestionamento no SIEM.","Incorreta. Licenciamento permanece necessário."], overallSummary:"Delta Export = transmissão inteligente. Impacto direto em WAN e storage SIEM." },
+    { id:25, level:"Difícil", category:"D2: Refining Questions", question:"Um filtro local (Local Filter) na tabela do Interact gera tráfego de rede na LAN?", options:["Sim, sempre","Sim, mas só para hosts filtrados","Não, processa apenas na RAM do navegador","Depende do Server"], correctIndex:2, explanations:["Incorreta. Filtros locais não retransmitem ao servidor.","Incorreta. Não se comunicam com hosts.","Correta! Processa e filtra apenas na RAM do navegador, sem retransmitir mensagens na rede.","Incorreta. Comportamento é independente da configuração do servidor."], overallSummary:"Filtro Local = zero tráfego. 100% client-side na RAM do navegador." },
+    { id:26, level:"Difícil", category:"D4: Navigation and Modules", question:"Como endpoints descobrem vizinhos na sub-rede local na Linear Chain?", options:["Consultando o banco central do Server","Neighbor Discovery no domínio de broadcast (Camada 2)","Via DNS reverso","Configuração manual no client.cfg"], correctIndex:1, explanations:["Incorreta. Descoberta não depende do banco central.","Correta! Neighbor Discovery no mesmo domínio de broadcast (Camada 2). Líder eleito = Subnet Leader.","Incorreta. DNS reverso não é usado.","Incorreta. Descoberta é automática, não manual."], overallSummary:"Neighbor Discovery = Camada 2 (broadcast). Subnet Leader = ponte para WAN." },
+    { id:27, level:"Difícil", category:"D3: Taking Action", question:"Sequência correta dos status de uma Action:", options:["Running -> Downloading -> Scheduled -> Completed","Scheduled -> Downloading -> Running -> Completed (Exit 0) ou Failed (Exit != 0)","Downloading -> Scheduled -> Running -> Failed","Pending -> Active -> Done -> Archived"], correctIndex:1, explanations:["Incorreta. Não começa por Running.","Correta! Scheduled -> Downloading -> Running -> Completed/Failed. Exit Code 0 = sucesso.","Incorreta. Download ocorre após agendamento.","Incorreta. Esses status não existem no Tanium."], overallSummary:"Flow: Scheduled -> Downloading -> Running -> Completed (0) / Failed (!=0)." },
+    { id:28, level:"Difícil", category:"D1: Asking Questions", question:"Uma Question sem filtros na cláusula 'from' tem qual escopo?", options:["Apenas servidores registrados","Apenas endpoints online na última hora","Todos os ativos corporativos","Apenas endpoints atualizados"], correctIndex:2, explanations:["Incorreta. Não se limita a servidores.","Incorreta. Filtro de tempo não é padrão em 'from'.","Correta! 'from all machines' sem filtros = todos os ativos corporativos.","Incorreta. Versão do agente não é filtro padrão."], overallSummary:"from all machines = escopo total. Filtros em 'from' ou 'with' limitam o alcance." },
+    { id:29, level:"Difícil", category:"D2: Refining Questions", question:"Ao refinar com filtros Server-side, o que acontece?", options:["Dados originais são sobrescritos","Nova pergunta com restrição é emitida, recalculando dados em tempo real","Dados filtrados apenas na cache","Server gera PDF automaticamente"], correctIndex:1, explanations:["Incorreta. Dados originais não são sobrescritos.","Correta! Nova pergunta com restrição recalcula dados em tempo real dos endpoints.","Incorreta. Essa descrição = filtros Locais.","Incorreta. Nenhum PDF é gerado."], overallSummary:"Server-side = nova pergunta + recálculo nos endpoints em tempo real." },
+    { id:30, level:"Difícil", category:"D4: Navigation and Modules", question:"Saved Questions dinâmicas em Scheduled Actions garantem:", options:["Economia de disco nos endpoints","Redução de licenciamento","Novos endpoints são automaticamente incluídos no escopo","Aumento de velocidade de download"], correctIndex:2, explanations:["Incorreta. Não afeta consumo de disco.","Incorreta. Não impacta licenciamento.","Correta! Novos endpoints que entram na rede são automaticamente incluídos na conformidade.","Incorreta. Velocidade de download é controlada por Distribute Over."], overallSummary:"Saved Questions dinâmicas = escopo auto-atualizável para conformidade contínua." }
+];
+
+const FLASHCARDS_DATA = [
+    { front:"Qual sensor extrai o hash MD5 de um executável?", code:"Get File MD5[C:\\Windows\\System32\\cmd.exe] from all machines", desc:"Checksum criptográfico para triagens forenses de alteração ou malware." },
+    { front:"Qual sensor obtém nomes de computadores?", code:"Get Computer Name from all machines", desc:"Inventário básico de conectividade e identificação física." },
+    { front:"Como verificar portas abertas em todos os endpoints?", code:"Get Open Ports from all machines", desc:"Varredura rápida de portas em escuta ativa para triagem de segurança." },
+    { front:"Como auditar contas locais em todos os hosts?", code:"Get Local Users from all machines", desc:"Detecção de persistências de invasores em chaves de contas locais." },
+    { front:"Qual sensor lista aplicações instaladas?", code:"Get Installed Applications from all machines", desc:"Mapeamento de software ativo para conformidade e auditoria." },
+    { front:"Como verificar o estado de um serviço Windows específico?", code:"Get Windows Service State[Spooler] from all machines", desc:"Sensor parametrizado com colchetes []. Verifica status de serviços." },
+    { front:"Como consultar Custom Tags nos endpoints?", code:"Get Custom Tags from all machines", desc:"Auditoria de tags de segmentação e conformidade corporativa." },
+    { front:"Qual sensor verifica a existência de um arquivo?", code:"Get File Exists[C:\\temp\\patch.log] from all machines", desc:"Verificação booleana de existência de arquivos específicos." },
+    { front:"Qual porta padrão do Tanium Client?", code:"TCP 17472", desc:"Barramento exclusivo para comunicação de cadeia linear e controle." },
+    { front:"O que contém tanium-init.dat?", code:"Chave pública do Tanium Server", desc:"Mensagens sem assinatura válida são descartadas na porta 17472." },
+    { front:"O que contém client.cfg?", code:"IPs dos servidores, LogVerbosityLevel, regras de pareamento", desc:"Arquivo de parametrização local do agente Tanium Client." },
+    { front:"Qual timeout padrão dos sensores?", code:"60 segundos", desc:"Executados em sandbox restrito temporário para proteger CPU e disco." },
+    { front:"O que faz o módulo Comply?", code:"Auditoria de CVEs e guias CIS de hardening", desc:"Focado em conformidade e endurecimento de configurações." },
+    { front:"O que faz o Delta Export?", code:"Envia apenas dados alterados desde a última varredura", desc:"Economiza drasticamente banda WAN e storage no SIEM." },
+    { front:"Sensores podem modificar endpoints?", code:"NÃO — estritamente Read-only", desc:"Modificações requerem Actions com Packages. Pegadinha clássica da prova." }
+];
+
+// ============================================================
+// STATE & LOCALSTORAGE
+// ============================================================
+
+const LS_KEY = 'tco_platform_v2';
+
+function loadState() {
+    try {
+        const raw = localStorage.getItem(LS_KEY);
+        if (raw) return JSON.parse(raw);
+    } catch(e) {}
+    return defaultState();
+}
+
+function defaultState() {
+    return {
+        answered: {},       // { questionId: { correct: bool, level, category, timestamp } }
+        wrongIds: [],       // unique question IDs answered wrong
+        streak: 0,
+        bestStreak: 0,
+        domainCorrect: { d1:0, d2:0, d3:0, d4:0, d5:0 },
+        domainTotal:   { d1:0, d2:0, d3:0, d4:0, d5:0 },
+        lastActivity: null,
+        checklist: {},
+        totalCorrect: 0,
+        totalAnswered: 0
+    };
+}
+
+let STATE = loadState();
+
+function saveState() {
+    try { localStorage.setItem(LS_KEY, JSON.stringify(STATE)); } catch(e) {}
+}
+
+function resetState() {
+    STATE = defaultState();
+    saveState();
+    refreshDashboard();
+    showToast('Progresso resetado', 'info');
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+
+function getDomainFromCategory(cat) {
+    if (cat.includes('D1')) return 'd1';
+    if (cat.includes('D2')) return 'd2';
+    if (cat.includes('D3')) return 'd3';
+    if (cat.includes('D4')) return 'd4';
+    if (cat.includes('D5')) return 'd5';
+    return 'd4';
+}
+
+function getAccuracy(correct, total) {
+    return total === 0 ? 0 : Math.round((correct / total) * 100);
+}
+
+function showToast(message, type='info') {
+    const container = document.getElementById('toast-container');
+    const colors = { info:'border-indigo-500 bg-slate-800', success:'border-emerald-500 bg-slate-800', error:'border-rose-500 bg-slate-800', warning:'border-amber-500 bg-slate-800' };
+    const icons = { info:'fa-circle-info text-indigo-400', success:'fa-circle-check text-emerald-400', error:'fa-circle-xmark text-rose-400', warning:'fa-triangle-exclamation text-amber-400' };
+    const el = document.createElement('div');
+    el.className = `toast flex items-center gap-3 px-4 py-3 rounded-xl border ${colors[type]} shadow-xl text-sm text-white`;
+    el.innerHTML = `<i class="fa-solid ${icons[type]}"></i><span>${message}</span>`;
+    container.appendChild(el);
+    setTimeout(() => { el.classList.add('toast-out'); setTimeout(() => el.remove(), 300); }, 3000);
+}
+
+function formatTime(seconds) {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+// ============================================================
+// TAB NAVIGATION
+// ============================================================
+
+let currentTab = 'dashboard';
+
+function buildNav() {
+    const desktop = document.getElementById('desktop-nav');
+    const mobile = document.getElementById('mobile-nav');
+    desktop.innerHTML = TABS.map(t => `<button onclick="switchTab('${t.id}')" id="tab-${t.id}" class="px-3 py-2 text-sm font-medium rounded-lg transition-colors ${t.id===currentTab?'bg-indigo-600 text-white shadow-sm shadow-indigo-900/30':'text-slate-300 hover:text-white hover:bg-slate-800'}"><i class="fa-solid ${t.icon} mr-2"></i>${t.label}</button>`).join('');
+    mobile.innerHTML = TABS.map(t => `<button onclick="switchTab('${t.id}')" id="mob-tab-${t.id}" class="flex flex-col items-center text-xs font-medium ${t.id===currentTab?'text-indigo-400':'text-slate-400'}"><i class="fa-solid ${t.icon} mb-1 text-base"></i>${t.mobile}</button>`).join('');
+}
+
+function switchTab(id) {
+    currentTab = id;
+    TABS.forEach(t => {
+        const panel = document.getElementById('panel-' + t.id);
+        const btn = document.getElementById('tab-' + t.id);
+        const mobBtn = document.getElementById('mob-tab-' + t.id);
+        if (panel) panel.classList.toggle('hidden', t.id !== id);
+        if (panel && t.id === id) { panel.classList.remove('tab-panel'); void panel.offsetWidth; panel.classList.add('tab-panel'); }
+        if (btn) { btn.className = `px-3 py-2 text-sm font-medium rounded-lg transition-colors ${t.id===id?'bg-indigo-600 text-white shadow-sm shadow-indigo-900/30':'text-slate-300 hover:text-white hover:bg-slate-800'}`; }
+        if (mobBtn) { mobBtn.className = `flex flex-col items-center text-xs font-medium ${t.id===id?'text-indigo-400':'text-slate-400'}`; }
+    });
+    if (id === 'dashboard') refreshDashboard();
+}
+
+// ============================================================
+// DASHBOARD
+// ============================================================
+
+function refreshDashboard() {
+    const s = STATE;
+    const totalQ = EXAM_QUESTIONS.length;
+    const pct = totalQ > 0 ? Math.round((s.totalCorrect / totalQ) * 100) : 0;
+
+    // Gauge
+    const circumference = 251.2;
+    const offset = circumference - (circumference * pct / 100);
+    document.getElementById('readiness-gauge-circle').setAttribute('stroke-dashoffset', offset);
+    document.getElementById('readiness-gauge-text').textContent = pct + '%';
+    document.getElementById('global-readiness-percent').textContent = pct + '% Pronto';
+    document.getElementById('stats-total-answered').textContent = `${s.totalAnswered}/${totalQ}`;
+    document.getElementById('stats-total-correct').textContent = s.totalCorrect;
+
+    // Levels
+    const levels = { 'Fácil':'easy', 'Intermediário':'med', 'Difícil':'hard' };
+    Object.entries(levels).forEach(([level, key]) => {
+        let c = 0, t = 0;
+        Object.entries(s.answered).forEach(([qid, data]) => {
+            if (data.level === level) { t++; if (data.correct) c++; }
+        });
+        const a = getAccuracy(c, t);
+        document.getElementById(`stat-lvl-${key}-text`).textContent = a + '%';
+        document.getElementById(`stat-lvl-${key}-bar`).style.width = a + '%';
+    });
+
+    // Last activity
+    document.getElementById('stat-last-activity').textContent = s.lastActivity ? new Date(s.lastActivity).toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : 'Nenhuma';
+
+    // Domain grid
+    const domainGrid = document.getElementById('domain-grid');
+    domainGrid.innerHTML = DOMAINS.map(d => {
+        const a = getAccuracy(s.domainCorrect[d.id], s.domainTotal[d.id]);
+        return `<div class="bg-slate-950 border border-slate-800/60 rounded-xl p-4 flex flex-col justify-between space-y-3"><span class="text-xs font-bold text-indigo-400">${d.name} (${d.weight}%)</span><div class="text-2xl font-extrabold text-white">${a}%</div><div class="w-full bg-slate-800 rounded-full h-1.5"><div class="bg-indigo-500 h-1.5 rounded-full progress-smooth" style="width:${a}%"></div></div></div>`;
+    }).join('');
+
+    // Smart recommendations
+    const recContainer = document.getElementById('smart-recommendations');
+    const recList = document.getElementById('recommendations-list');
+    const recs = [];
+    DOMAINS.forEach(d => {
+        const a = getAccuracy(s.domainCorrect[d.id], s.domainTotal[d.id]);
+        if (s.domainTotal[d.id] > 0 && a < 60) {
+            recs.push(`<div class="flex items-center gap-3 p-3 bg-rose-950/10 border border-rose-900/20 rounded-xl"><i class="fa-solid fa-circle-exclamation text-rose-400"></i><span class="text-slate-300 text-sm"><strong class="text-rose-400">${d.short}</strong> está em ${a}% — revise <strong>${d.name}</strong> no Guia de Estudos.</span></div>`);
+        }
+    });
+    if (recs.length > 0) {
+        recContainer.classList.remove('hidden');
+        recList.innerHTML = recs.join('');
+    } else if (s.totalAnswered > 0) {
+        recContainer.classList.remove('hidden');
+        recList.innerHTML = '<div class="flex items-center gap-3 p-3 bg-emerald-950/10 border border-emerald-900/20 rounded-xl"><i class="fa-solid fa-circle-check text-emerald-400"></i><span class="text-slate-300 text-sm">Todos os domínios acima de 60%. Continue praticando para atingir 80%+!</span></div>';
+    } else {
+        recContainer.classList.add('hidden');
+    }
+
+    // Wrong questions summary
+    const wrongSummary = document.getElementById('wrong-questions-summary');
+    if (s.wrongIds.length > 0) {
+        wrongSummary.classList.remove('hidden');
+        document.getElementById('wrong-count-text').textContent = s.wrongIds.length;
+    } else {
+        wrongSummary.classList.add('hidden');
+    }
+
+    // Streak
+    const streakDisplay = document.getElementById('streak-display');
+    if (s.streak >= 2) {
+        streakDisplay.classList.remove('hidden');
+        document.getElementById('streak-count').textContent = s.streak;
+    } else {
+        streakDisplay.classList.add('hidden');
+    }
+}
+
+// ============================================================
+// EXAM ENGINE
+// ============================================================
+
+let examState = { questions: [], currentIndex: 0, selectedOption: -1, score: 0, timer: 0, timerInterval: null, isWrongExam: false, mode: 'practice' };
+
+function startQuickExam() {
+    document.getElementById('sim-filter-level').value = 'all';
+    document.getElementById('sim-filter-mode').value = 'practice';
+    switchTab('simulator');
+    startExamEngine();
+}
+
+function startWrongQuestionsExam() {
+    if (STATE.wrongIds.length === 0) { showToast('Nenhuma questão errada para revisar!', 'info'); return; }
+    examState.isWrongExam = true;
+    switchTab('simulator');
+    document.getElementById('sim-setup').classList.add('hidden');
+    document.getElementById('sim-player').classList.remove('hidden');
+    document.getElementById('sim-results').classList.add('hidden');
+    examState.questions = STATE.wrongIds.map(id => EXAM_QUESTIONS.find(q => q.id === id)).filter(Boolean);
+    shuffleArray(examState.questions);
+    examState.currentIndex = 0;
+    examState.score = 0;
+    examState.mode = 'practice';
+    examState.timer = 0;
+    clearInterval(examState.timerInterval);
+    examState.timerInterval = setInterval(() => { examState.timer++; document.getElementById('player-timer').textContent = formatTime(examState.timer); }, 1000);
+    renderQuestion();
+}
+
+function startExamEngine() {
+    examState.isWrongExam = false;
+    const levelFilter = document.getElementById('sim-filter-level').value;
+    examState.mode = document.getElementById('sim-filter-mode').value;
+    const isAdaptive = document.getElementById('sim-adaptive-toggle').checked;
+
+    let pool = [...EXAM_QUESTIONS];
+    if (levelFilter !== 'all') pool = pool.filter(q => q.level === levelFilter);
+
+    if (isAdaptive && levelFilter === 'all') {
+        // Sort by domain weakness
+        const domainScores = {};
+        DOMAINS.forEach(d => { domainScores[d.id] = getAccuracy(STATE.domainCorrect[d.id], STATE.domainTotal[d.id]); });
+        pool.sort((a, b) => {
+            const da = getDomainFromCategory(a.category);
+            const db = getDomainFromCategory(b.category);
+            return (domainScores[da] || 0) - (domainScores[db] || 0);
+        });
+    }
+
+    shuffleArray(pool);
+    examState.questions = pool.slice(0, levelFilter === 'all' ? 15 : 5);
+    examState.currentIndex = 0;
+    examState.score = 0;
+    examState.selectedOption = -1;
+    examState.timer = 0;
+
+    document.getElementById('sim-setup').classList.add('hidden');
+    document.getElementById('sim-player').classList.remove('hidden');
+    document.getElementById('sim-results').classList.add('hidden');
+
+    clearInterval(examState.timerInterval);
+    examState.timerInterval = setInterval(() => { examState.timer++; document.getElementById('player-timer').textContent = formatTime(examState.timer); }, 1000);
+
+    renderQuestion();
+}
+
+function renderQuestion() {
+    const q = examState.questions[examState.currentIndex];
+    const total = examState.questions.length;
+    const idx = examState.currentIndex + 1;
+
+    document.getElementById('player-question-counter').textContent = `Questão ${idx} de ${total}`;
+    document.getElementById('player-question-level').textContent = q.level;
+    document.getElementById('player-question-category').textContent = q.category;
+    document.getElementById('player-question-text').textContent = q.question;
+    document.getElementById('player-progress-bar').style.width = ((idx / total) * 100) + '%';
+
+    const colors = { 'Fácil':'text-emerald-400 bg-emerald-900/30 border-emerald-700/30', 'Intermediário':'text-indigo-400 bg-indigo-900/30 border-indigo-700/30', 'Difícil':'text-rose-400 bg-rose-900/30 border-rose-700/30' };
+    const lvl = document.getElementById('player-question-level');
+    lvl.className = `text-xs font-bold px-3 py-1.5 rounded-lg border ${colors[q.level] || ''}`;
+
+    const container = document.getElementById('player-options-container');
+    container.innerHTML = q.options.map((opt, i) => {
+        const letters = ['A', 'B', 'C', 'D'];
+        return `<div class="option-card p-4 rounded-xl border border-slate-800 cursor-pointer flex items-start gap-3" data-index="${i}" onclick="selectOption(${i})">
+            <span class="w-7 h-7 rounded-lg bg-slate-800 flex items-center justify-center text-xs font-bold text-slate-300 shrink-0">${letters[i]}</span>
+            <span class="text-sm text-slate-300 leading-relaxed">${opt}</span>
+        </div>`;
+    }).join('');
+
+    examState.selectedOption = -1;
+    document.getElementById('player-submit-btn').classList.remove('hidden');
+    document.getElementById('sim-explanation-panel').classList.add('hidden');
+}
+
+function selectOption(index) {
+    examState.selectedOption = index;
+    document.querySelectorAll('.option-card').forEach((el, i) => {
+        el.classList.toggle('selected', i === index);
+    });
+}
+
+function submitAnswer() {
+    if (examState.selectedOption === -1) { showToast('Selecione uma alternativa', 'warning'); return; }
+    const q = examState.questions[examState.currentIndex];
+    const isCorrect = examState.selectedOption === q.correctIndex;
+    const domain = getDomainFromCategory(q.category);
+
+    // Update state
+    if (!STATE.answered[q.id]) {
+        STATE.totalAnswered++;
+        STATE.domainTotal[domain]++;
+        if (isCorrect) { STATE.totalCorrect++; STATE.domainCorrect[domain]++; }
+    } else {
+        // Re-answered: adjust domain if changed from wrong to correct
+        const wasCorrect = STATE.answered[q.id].correct;
+        if (!wasCorrect && isCorrect) { STATE.totalCorrect++; STATE.domainCorrect[domain]++; }
+        if (wasCorrect && !isCorrect) { STATE.totalCorrect--; STATE.domainCorrect[domain]--; }
+    }
+
+    STATE.answered[q.id] = { correct: isCorrect, level: q.level, category: q.category, timestamp: Date.now() };
+    STATE.lastActivity = Date.now();
+
+    if (!isCorrect && !STATE.wrongIds.includes(q.id)) {
+        STATE.wrongIds.push(q.id);
+    } else if (isCorrect) {
+        STATE.wrongIds = STATE.wrongIds.filter(id => id !== q.id);
+    }
+
+    // Streak
+    if (isCorrect) { STATE.streak++; if (STATE.streak > STATE.bestStreak) STATE.bestStreak = STATE.streak; }
+    else { STATE.streak = 0; }
+
+    saveState();
+
+    if (examState.mode === 'practice') {
+        showExplanation(q, isCorrect);
+    } else {
+        if (isCorrect) examState.score++;
+        nextQuestion();
+    }
+}
+
+function showExplanation(q, isCorrect) {
+    const panel = document.getElementById('sim-explanation-panel');
+    panel.classList.remove('hidden');
+
+    const badge = document.getElementById('explanation-alert-badge');
+    if (isCorrect) {
+        badge.className = 'flex items-center gap-2 font-bold text-sm px-3 py-1.5 rounded-lg w-fit bg-emerald-500/10 text-emerald-400 border border-emerald-500/30';
+        badge.innerHTML = '<i class="fa-solid fa-check-circle"></i> Correto!';
+        examState.score++;
+    } else {
+        badge.className = 'flex items-center gap-2 font-bold text-sm px-3 py-1.5 rounded-lg w-fit bg-rose-500/10 text-rose-400 border border-rose-500/30';
+        badge.innerHTML = '<i class="fa-solid fa-xmark-circle"></i> Incorreto';
+    }
+
+    // Mark options
+    document.querySelectorAll('.option-card').forEach((el, i) => {
+        el.style.pointerEvents = 'none';
+        if (i === q.correctIndex) el.classList.add('correct');
+        if (i === examState.selectedOption && !isCorrect) el.classList.add('incorrect');
+    });
+
+    document.getElementById('explanation-opt-a').textContent = q.explanations[0];
+    document.getElementById('explanation-opt-b').textContent = q.explanations[1];
+    document.getElementById('explanation-opt-c').textContent = q.explanations[2];
+    document.getElementById('explanation-opt-d').textContent = q.explanations[3];
+    document.getElementById('explanation-overall-summary').textContent = q.overallSummary;
+
+    document.getElementById('player-submit-btn').classList.add('hidden');
+
+    // Scroll to explanation
+    panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function nextQuestion() {
+    examState.currentIndex++;
+    if (examState.currentIndex >= examState.questions.length) {
+        finishExam();
+    } else {
+        renderQuestion();
+    }
+}
+
+function finishExam() {
+    clearInterval(examState.timerInterval);
+    document.getElementById('sim-player').classList.add('hidden');
+    document.getElementById('sim-results').classList.remove('hidden');
+
+    const total = examState.questions.length;
+    const pct = Math.round((examState.score / total) * 100);
+
+    document.getElementById('res-total-questions').textContent = total;
+    document.getElementById('res-correct-questions').textContent = examState.score;
+    document.getElementById('res-accuracy').textContent = pct + '%';
+    document.getElementById('res-time').textContent = formatTime(examState.timer);
+
+    let msg = '';
+    if (pct >= 80) msg = 'Excelente! Sua pontuação indica prontidão para o exame real. Continue afiando!';
+    else if (pct >= 60) msg = 'Bom progresso! Revise os domínios fracos indicados no Dashboard para atingir 80%.';
+    else msg = 'Continue estudando! Revisite o Guia de Estudos e pratique os Labs antes de tentar novamente.';
+    document.getElementById('res-performance-message').textContent = msg;
+
+    if (STATE.streak >= 3) showToast(`Sequência de ${STATE.streak} acertos!`, 'success');
+}
+
+function quitExam() {
+    clearInterval(examState.timerInterval);
+    document.getElementById('sim-player').classList.add('hidden');
+    document.getElementById('sim-setup').classList.remove('hidden');
+}
+
+function returnToSetup() {
+    clearInterval(examState.timerInterval);
+    document.getElementById('sim-results').classList.add('hidden');
+    document.getElementById('sim-setup').classList.remove('hidden');
+    examState.isWrongExam = false;
+}
+
+function shuffleArray(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+}
+
+// ============================================================
+// FLASHCARDS
+// ============================================================
+
+let cardIndex = 0;
+
+function renderFlashcard() {
+    const card = FLASHCARDS_DATA[cardIndex];
+    document.getElementById('card-front-title').textContent = card.front;
+    document.getElementById('card-back-code').textContent = card.code;
+    document.getElementById('card-back-desc').textContent = card.desc;
+    document.getElementById('flashcard-counter').textContent = `Card ${cardIndex + 1} de ${FLASHCARDS_DATA.length}`;
+    // Reset flip
+    document.getElementById('flashcard-inner').classList.remove('flip-card-flipped');
+}
+
+function toggleCardFlip() {
+    document.getElementById('flashcard-inner').classList.toggle('flip-card-flipped');
+}
+
+function nextCard() { cardIndex = (cardIndex + 1) % FLASHCARDS_DATA.length; renderFlashcard(); }
+function prevCard() { cardIndex = (cardIndex - 1 + FLASHCARDS_DATA.length) % FLASHCARDS_DATA.length; renderFlashcard(); }
+
+// ============================================================
+// LABS
+// ============================================================
+
+function buildLabScenarios() {
+    const container = document.getElementById('lab-scenarios-list');
+    container.innerHTML = LABS_DATA.map(lab => {
+        const badge = lab.type === 'query' ? 'text-indigo-400' : 'text-amber-400';
+        const icon = lab.type === 'query' ? 'fa-magnifying-glass' : 'fa-bolt';
+        return `<div class="bg-slate-950 p-3 rounded-xl border border-slate-800 hover:border-indigo-500 cursor-pointer transition-colors group" onclick="setLabQuery(${lab.id})">
+            <div class="flex justify-between items-center"><span class="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">Lab ${String(lab.id).padStart(2,'0')}</span><i class="fa-solid ${icon} ${badge} text-xs"></i></div>
+            <p class="text-xs text-slate-300 mt-1 font-semibold">${lab.title}</p>
+            <code class="text-[10px] text-indigo-400/80 mt-2 block bg-indigo-950/30 p-1.5 rounded truncate">${lab.cmd.substring(0, 45)}...</code>
+        </div>`;
+    }).join('');
+}
+
+function setLabQuery(labId) {
+    const lab = LABS_DATA.find(l => l.id === labId);
+    if (lab) document.getElementById('lab-interact-input').value = lab.cmd;
+}
+
+function executeInteractQuery() {
+    const input = document.getElementById('lab-interact-input').value.trim();
+    if (!input) { showToast('Digite uma query', 'warning'); return; }
+
+    const progressContainer = document.getElementById('lab-progress-container');
+    const progressBar = document.getElementById('lab-progress-bar');
+    const progressText = document.getElementById('lab-progress-text');
+    const results = document.getElementById('lab-results-content');
+
+    progressContainer.classList.remove('hidden');
+    progressBar.style.width = '0%';
+    results.innerHTML = '<div class="text-center space-y-2 opacity-60"><i class="fa-solid fa-spinner fa-spin text-2xl text-indigo-400"></i><p class="text-xs text-slate-400">Processando query na cadeia linear...</p></div>';
+
+    let pct = 0;
+    const interval = setInterval(() => {
+        pct += Math.random() * 15 + 5;
+        if (pct >= 100) pct = 100;
+        progressBar.style.width = pct + '%';
+        progressText.textContent = Math.round(pct) + '%';
+        if (pct >= 100) {
+            clearInterval(interval);
+            setTimeout(() => {
+                progressContainer.classList.add('hidden');
+                renderLabResults(input);
+            }, 400);
+        }
+    }, 200);
+}
+
+function renderLabResults(query) {
+    const results = document.getElementById('lab-results-content');
+    // Generate mock results based on query keywords
+    let headers = [];
+    let rows = [];
+
+    if (query.toLowerCase().includes('computer name')) {
+        headers = ['Computer Name', 'Operating System'];
+        rows = [
+            ['WS-PROD-001', 'Windows 11 Enterprise 23H2'],
+            ['SRV-DB-042', 'Windows Server 2022'],
+            ['LNX-DEV-007', 'Ubuntu 22.04.3 LTS'],
+            ['WS-PROD-089', 'Windows 10 Enterprise 22H2'],
+            ['SRV-WEB-015', 'CentOS Stream 9']
+        ];
+    } else if (query.toLowerCase().includes('open ports')) {
+        headers = ['Computer Name', 'Port', 'Protocol', 'Service'];
+        rows = [
+            ['WS-PROD-001', '445', 'TCP', 'SMB'],
+            ['SRV-DB-042', '1433', 'TCP', 'MSSQL'],
+            ['LNX-DEV-007', '22', 'TCP', 'SSH'],
+            ['SRV-WEB-015', '80', 'TCP', 'HTTP'],
+            ['SRV-WEB-015', '443', 'TCP', 'HTTPS']
+        ];
+    } else if (query.toLowerCase().includes('local users')) {
+        headers = ['Computer Name', 'Username', 'Status'];
+        rows = [
+            ['WS-PROD-001', 'Administrator', 'Active'],
+            ['WS-PROD-001', 'svc_backup', 'Active'],
+            ['LNX-DEV-007', 'root', 'Active'],
+            ['LNX-DEV-007', 'devuser', 'Active'],
+            ['SRV-DB-042', 'sa', 'Disabled']
+        ];
+    } else if (query.toLowerCase().includes('file md5')) {
+        headers = ['Computer Name', 'File Path', 'MD5 Hash', 'Status'];
+        rows = [
+            ['WS-PROD-001', 'C:\\Windows\\System32\\cmd.exe', 'a1b2c3d4e5f6...', 'OK'],
+            ['WS-PROD-089', 'C:\\Windows\\System32\\cmd.exe', 'a1b2c3d4e5f6...', 'OK'],
+            ['SRV-DB-042', 'C:\\Windows\\System32\\cmd.exe', 'x9y8z7w6v5u4...', 'MISMATCH']
+        ];
+    } else if (query.toLowerCase().includes('installed applications')) {
+        headers = ['Computer Name', 'Application', 'Version', 'Publisher'];
+        rows = [
+            ['WS-PROD-001', 'Microsoft Office 365', '16.0.16827', 'Microsoft'],
+            ['WS-PROD-001', 'Google Chrome', '120.0.6099', 'Google'],
+            ['SRV-DB-042', 'SQL Server 2022', '16.0.4085', 'Microsoft'],
+            ['LNX-DEV-007', 'Docker Engine', '24.0.7', 'Docker Inc.']
+        ];
+    } else if (query.toLowerCase().includes('custom tags')) {
+        headers = ['Computer Name', 'Custom Tags', 'Installed Applications'];
+        rows = [
+            ['SRV-DB-042', 'PCI-Scope, Production', 'SQL Server 2022'],
+            ['SRV-WEB-015', 'PCI-Scope, DMZ', 'Nginx 1.24']
+        ];
+    } else if (query.toLowerCase().includes('windows service')) {
+        headers = ['Computer Name', 'Service Name', 'State', 'Start Type'];
+        rows = [
+            ['SRV-DB-042', 'Spooler', 'Running', 'Auto'],
+            ['WS-PROD-089', 'Spooler', 'Running', 'Auto'],
+            ['WS-PROD-001', 'Spooler', 'Stopped', 'Disabled']
+        ];
+    } else if (query.toLowerCase().includes('file exists')) {
+        headers = ['Computer Name', 'File Path', 'Exists'];
+        rows = [
+            ['SRV-DB-042', 'C:\\temp\\patch.log', 'True'],
+            ['WS-PROD-001', 'C:\\temp\\patch.log', 'False']
+        ];
+    } else {
+        headers = ['Computer Name', 'Sensor Value', 'Timestamp'];
+        rows = [
+            ['WS-PROD-001', 'Result A', new Date().toISOString()],
+            ['SRV-DB-042', 'Result B', new Date().toISOString()],
+            ['LNX-DEV-007', 'Result C', new Date().toISOString()]
+        ];
+    }
+
+    let html = `<div class="space-y-3 w-full"><div class="flex items-center justify-between"><span class="text-xs text-emerald-400 font-bold"><i class="fa-solid fa-check-circle mr-1"></i>${rows.length} resultados em ${Math.floor(Math.random()*3+1)}.${Math.floor(Math.random()*9)}s</span><span class="text-[10px] text-slate-500">${new Date().toLocaleTimeString('pt-BR')}</span></div>`;
+    html += `<div class="overflow-x-auto"><table class="min-w-full divide-y divide-slate-800 text-xs"><thead class="bg-slate-900"><tr>`;
+    headers.forEach(h => html += `<th class="px-3 py-2 text-left font-bold text-slate-400">${h}</th>`);
+    html += `</tr></thead><tbody class="divide-y divide-slate-800/60">`;
+    rows.forEach(row => {
+        html += '<tr>';
+        row.forEach((cell, ci) => {
+            const color = cell === 'MISMATCH' ? 'text-rose-400 font-bold' : cell === 'True' ? 'text-emerald-400' : cell === 'False' ? 'text-slate-500' : 'text-slate-300';
+            html += `<td class="px-3 py-2 ${color}">${cell}</td>`;
+        });
+        html += '</tr>';
+    });
+    html += '</tbody></table></div></div>';
+    results.innerHTML = html;
+}
+
+// ============================================================
+// STUDY GUIDE HELPERS
+// ============================================================
+
+function buildStudyContent() {
+    // Labs in study guide
+    const labsList = document.getElementById('labs-study-list');
+    labsList.innerHTML = LABS_DATA.slice(0, 10).map(lab => {
+        const colorMap = { query:'text-indigo-300', rule:'text-indigo-300', action:'text-indigo-300' };
+        return `<div class="bg-slate-950 p-5 rounded-xl border border-slate-800 space-y-3">
+            <span class="text-xs font-bold text-emerald-400 uppercase tracking-widest"><i class="fa-solid fa-check-circle mr-1"></i>LAB ${String(lab.id).padStart(2,'0')} — ${lab.title}</span>
+            <p class="text-xs text-slate-400"><strong>Objetivo:</strong> ${lab.obj}</p>
+            <p class="text-xs text-slate-400"><strong>${lab.type === 'action' ? 'Passo a Passo' : lab.type === 'rule' ? 'Regra Lógica' : 'Sintaxe'}:</strong></p>
+            <code class="block p-3 bg-slate-900 rounded font-mono text-[11px] ${colorMap[lab.type] || 'text-indigo-300'}">${lab.cmd}</code>
+        </div>`;
+    }).join('');
+
+    // Cheat sheet
+    const cheatsheetBody = document.getElementById('cheatsheet-tbody');
+    cheatsheetBody.innerHTML = CHEATSHEET_DATA.map(row => `<tr><td class="px-4 py-3 font-mono text-indigo-300">${row.query}</td><td class="px-4 py-3">${row.purpose}</td></tr>`).join('');
+
+    // Checklist
+    const checklistContainer = document.getElementById('checklist-container');
+    checklistContainer.innerHTML = CHECKLIST_ITEMS.map((item, i) => {
+        const checked = STATE.checklist[i] ? 'checked' : '';
+        return `<label class="flex items-center gap-3 p-3 bg-slate-950 rounded-xl border border-slate-800/80 cursor-pointer select-none">
+            <input type="checkbox" class="w-4 h-4 text-indigo-600 bg-slate-900 border-slate-700 rounded focus:ring-indigo-500 focus:ring-offset-slate-900" ${checked} onchange="toggleChecklist(${i}, this.checked)">
+            <span>${item}</span>
+        </label>`;
+    }).join('');
+}
+
+function toggleChecklist(index, checked) {
+    STATE.checklist[index] = checked;
+    saveState();
+}
+
+function scrollToSection(id) {
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: 'smooth' });
+}
+
+// ============================================================
+// ARCHITECTURE VISUALIZER
+// ============================================================
+
+let simAnimFrame = null;
+
+function triggerSimulation(type) {
+    const svg = document.getElementById('sim-svg-viewport');
+    const banner = document.getElementById('sim-status-banner');
+    const wrapper = document.getElementById('simulation-canvas-wrapper');
+    const w = wrapper.clientWidth;
+    const h = wrapper.clientHeight;
+
+    svg.innerHTML = '';
+    if (simAnimFrame) cancelAnimationFrame(simAnimFrame);
+
+    let wanPackets = 0, lanPackets = 0;
+
+    if (type === 'linear') {
+        banner.textContent = 'Simulando Cadeia Linear (Tanium)...';
+        banner.className = 'text-xs text-emerald-400 font-semibold bg-emerald-950/40 px-3 py-1.5 rounded-lg';
+
+        // Server
+        const serverX = w * 0.1, serverY = h * 0.5;
+        // Subnet Leader
+        const leaderX = w * 0.5, leaderY = h * 0.3;
+        // Endpoints
+        const endpoints = [
+            { x: w*0.65, y: h*0.2 }, { x: w*0.75, y: h*0.35 },
+            { x: w*0.65, y: h*0.5 }, { x: w*0.75, y: h*0.65 },
+            { x: w*0.65, y: h*0.8 }
+        ];
+
+        // Draw static elements
+        svg.innerHTML += `<rect x="${serverX-30}" y="${serverY-20}" width="60" height="40" rx="8" fill="#312e81" stroke="#6366f1" stroke-width="2"/><text x="${serverX}" y="${serverY+5}" text-anchor="middle" fill="#c7d2fe" font-size="10" font-weight="bold">Server</text>`;
+        svg.innerHTML += `<rect x="${leaderX-30}" y="${leaderY-20}" width="60" height="40" rx="8" fill="#064e3b" stroke="#10b981" stroke-width="2"/><text x="${leaderX}" y="${leaderY+5}" text-anchor="middle" fill="#6ee7b7" font-size="9" font-weight="bold">Leader</text>`;
+
+        endpoints.forEach((ep, i) => {
+            svg.innerHTML += `<circle cx="${ep.x}" cy="${ep.y}" r="12" fill="#1e293b" stroke="#475569" stroke-width="1.5"/><text x="${ep.x}" y="${ep.y+4}" text-anchor="middle" fill="#94a3b8" font-size="8">E${i+1}</text>`;
+            // LAN lines (leader to endpoints)
+            svg.innerHTML += `<line x1="${leaderX+30}" y1="${leaderY}" x2="${ep.x-12}" y2="${ep.y}" stroke="#10b981" stroke-width="1" stroke-dasharray="4" opacity="0.4"/>`;
+        });
+
+        // WAN line (server to leader)
+        svg.innerHTML += `<line x1="${serverX+30}" y1="${serverY}" x2="${leaderX-30}" y2="${leaderY}" stroke="#ef4444" stroke-width="2" stroke-dasharray="6" opacity="0.6"/>`;
+        svg.innerHTML += `<text x="${(serverX+leaderX)/2}" y="${(serverY+leaderY)/2 - 10}" text-anchor="middle" fill="#f87171" font-size="9">WAN (1 link)</text>`;
+
+        // Animated packet from server to leader
+        const packet = document.createElementNS('http://www.w3.org/2000/svg','circle');
+        packet.setAttribute('r','5');
+        packet.setAttribute('fill','#818cf8');
+        svg.appendChild(packet);
+
+        let progress = 0;
+        function animateLinear() {
+            progress += 0.008;
+            if (progress > 1) progress = 0;
+            const px = serverX + 30 + (leaderX - 30 - serverX - 30) * progress;
+            const py = serverY + (leaderY - serverY) * progress;
+            packet.setAttribute('cx', px);
+            packet.setAttribute('cy', py);
+            if (progress > 0.4 && progress < 0.42) { wanPackets++; document.getElementById('hud-wan-packets').textContent = wanPackets; }
+            if (progress > 0.7) { lanPackets += endpoints.length; document.getElementById('hud-lan-packets').textContent = lanPackets; }
+            simAnimFrame = requestAnimationFrame(animateLinear);
+        }
+        animateLinear();
+
+    } else {
+        banner.textContent = 'Simulando Estrela (Hub & Spoke)...';
+        banner.className = 'text-xs text-rose-400 font-semibold bg-rose-950/40 px-3 py-1.5 rounded-lg';
+
+        const serverX = w * 0.5, serverY = h * 0.3;
+        const endpoints = [
+            { x: w*0.15, y: h*0.8 }, { x: w*0.3, y: h*0.75 },
+            { x: w*0.45, y: h*0.82 }, { x: w*0.6, y: h*0.78 },
+            { x: w*0.75, y: h*0.85 }, { x: w*0.85, y: h*0.7 }
+        ];
+
+        svg.innerHTML += `<rect x="${serverX-35}" y="${serverY-22}" width="70" height="44" rx="8" fill="#4c1d95" stroke="#8b5cf6" stroke-width="2"/><text x="${serverX}" y="${serverY+5}" text-anchor="middle" fill="#c4b5fd" font-size="10" font-weight="bold">Hub Server</text>`;
+
+        endpoints.forEach((ep, i) => {
+            svg.innerHTML += `<circle cx="${ep.x}" cy="${ep.y}" r="12" fill="#1e293b" stroke="#475569" stroke-width="1.5"/><text x="${ep.x}" y="${ep.y+4}" text-anchor="middle" fill="#94a3b8" font-size="8">E${i+1}</text>`;
+            svg.innerHTML += `<line x1="${serverX}" y1="${serverY+22}" x2="${ep.x}" y2="${ep.y-12}" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4" opacity="0.5"/>`;
+        });
+
+        svg.innerHTML += `<text x="${serverX}" y="${h*0.55}" text-anchor="middle" fill="#f87171" font-size="9" font-weight="bold">WAN (${endpoints.length} links simultâneos!)</text>`;
+
+        const packets = endpoints.map(() => {
+            const p = document.createElementNS('http://www.w3.org/2000/svg','circle');
+            p.setAttribute('r','4');
+            p.setAttribute('fill','#f87171');
+            svg.appendChild(p);
+            return p;
+        });
+
+        let progress = 0;
+        function animateHub() {
+            progress += 0.006;
+            if (progress > 1) progress = 0;
+            endpoints.forEach((ep, i) => {
+                const px = serverX + (ep.x - serverX) * progress;
+                const py = serverY + 22 + (ep.y - 12 - serverY - 22) * progress;
+                packets[i].setAttribute('cx', px);
+                packets[i].setAttribute('cy', py);
+            });
+            if (progress > 0.5 && progress < 0.52) {
+                wanPackets += endpoints.length;
+                document.getElementById('hud-wan-packets').textContent = wanPackets;
+                document.getElementById('hud-lan-packets').textContent = '0';
+            }
+            simAnimFrame = requestAnimationFrame(animateHub);
+        }
+        animateHub();
+    }
+}
+
+// ============================================================
+// INIT
+// ============================================================
+
+function init() {
+    buildNav();
+    buildStudyContent();
+    buildLabScenarios();
+    renderFlashcard();
+    refreshDashboard();
+
+    // Trigger resize for architecture
+    window.addEventListener('resize', () => { if (currentTab === 'architecture') triggerSimulation('linear'); });
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
